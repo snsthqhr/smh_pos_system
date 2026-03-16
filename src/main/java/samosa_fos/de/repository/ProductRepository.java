@@ -1,4 +1,4 @@
-package samosa_fos.de.Repository;
+package samosa_fos.de.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import samosa_fos.de.domain.Product;
