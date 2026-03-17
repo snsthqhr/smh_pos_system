@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.support.WebContentGenerator;
 import samosa_fos.de.domain.Product;
 import samosa_fos.de.repository.ProductRepository;
@@ -16,11 +17,11 @@ public class ProductRepositoryTest {
 
     @Autowired
     ProductRepository productRepository;
-    @Autowired
-    private WebContentGenerator webContentGenerator;
+
 
 
     @Test
+    @Transactional
     @DisplayName("상품 저장 테스트")
     void saveProduct() {
         //given
@@ -43,5 +44,10 @@ public class ProductRepositoryTest {
         assertThat(savedProduct.getId()).isNotNull();
         assertThat(savedProduct.getProductName()).isEqualTo("아이생각 내부프로");
         assertThat(savedProduct.getSalePrice()).isEqualTo(52000);
+
     }
+
+    void
+
+
 }
