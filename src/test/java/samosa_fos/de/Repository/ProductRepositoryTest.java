@@ -10,6 +10,8 @@ import samosa_fos.de.domain.Product;
 import samosa_fos.de.repository.ProductRepository;
 
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -47,7 +49,114 @@ public class ProductRepositoryTest {
 
     }
 
-    void
+    @Test
+    @DisplayName("전체 상품 조회 테스트")
+    @Transactional
+    void findAllProducts() {
+        //given
+        Product product1 = new Product();
+        product1.setCode("P-002");
+        product1.setProductName("그린방수 하도");
+        product1.setProductNickname("하도");
+        product1.setVariant("18L");
+        product1.setUnit("말");
+        product1.setBrand("삼화");
+        product1.setCategory("방수");
+        product1.setCostPrice(40000);
+        product1.setSalePrice(60000);
+        product1.setStockQuantity(5);
 
+        Product product2 = new Product();
+        product2.setCode("P-003");
+        product2.setProductName("에나멜 흑색");
+        product2.setProductNickname("에나멜");
+        product2.setVariant("4L");
+        product2.setUnit("통");
+        product2.setBrand("삼화");
+        product2.setCategory("에나멜");
+        product2.setCostPrice(20000);
+        product2.setSalePrice(28000);
+        product2.setStockQuantity(7);
+
+        Product product3 = new Product();
+        product2.setCode("P-004");
+        product2.setProductName("에나멜 흑색");
+        product2.setProductNickname("에나멜");
+        product2.setVariant("18L");
+        product2.setUnit("말");
+        product2.setBrand("삼화");
+        product2.setCategory("에나멜");
+        product2.setCostPrice(90000);
+        product2.setSalePrice(110000);
+        product2.setStockQuantity(7);
+
+        productRepository.save(product1);
+        productRepository.save(product2);
+        productRepository.save(product3);
+
+        //when
+        List<Product> products = productRepository.findAll();
+        //then
+        assertThat(products.size()).isGreaterThanOrEqualTo(3);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("상품명으로 검색")
+    void findByProductNameContaining (){
+
+        //given
+        Product product1 = new Product();
+        product1.setCode("P-002");
+        product1.setProductName("그린방수 하도");
+        product1.setProductNickname("하도");
+        product1.setVariant("18L");
+        product1.setUnit("말");
+        product1.setBrand("삼화");
+        product1.setCategory("방수");
+        product1.setCostPrice(40000);
+        product1.setSalePrice(60000);
+        product1.setStockQuantity(5);
+
+        Product product2 = new Product();
+        product2.setCode("P-003");
+        product2.setProductName("에나멜 흑색");
+        product2.setProductNickname("에나멜");
+        product2.setVariant("4L");
+        product2.setUnit("통");
+        product2.setBrand("삼화");
+        product2.setCategory("에나멜");
+        product2.setCostPrice(20000);
+        product2.setSalePrice(28000);
+        product2.setStockQuantity(7);
+
+        Product product3 = new Product();
+        product3.setCode("P-004");
+        product3.setProductName("에나멜 흑색");
+        product3.setProductNickname("에나멜");
+        product3.setVariant("18L");
+        product3.setUnit("말");
+        product3.setBrand("삼화");
+        product3.setCategory("에나멜");
+        product3.setCostPrice(90000);
+        product3.setSalePrice(110000);
+        product3.setStockQuantity(7);
+
+        productRepository.save(product1);
+        productRepository.save(product2);
+        productRepository.save(product3);
+
+
+        //when
+        List<Product> products = productRepository.findByProductNameContaining("에나멜");
+
+        //then
+        assertThat(products).isNotNull();
+        for (Product p : products) {
+            System.out.println(p);
+            System.out.println(p.getProductName() + p.getVariant());
+        }
+
+    }
 
 }
