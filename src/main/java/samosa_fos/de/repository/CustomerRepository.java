@@ -21,6 +21,4 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     // 거래 중인 고객만 리스트로 보여줄 때 사용
     List<Customer> findByActiveTrue();
 
-    
-
 }
