@@ -23,7 +23,7 @@ public class CustomerPrice {
     private Boolean active = true; // 사용여부
 
 
-    protected CustomerPrice() {
+    public CustomerPrice() {
 
     }
 
