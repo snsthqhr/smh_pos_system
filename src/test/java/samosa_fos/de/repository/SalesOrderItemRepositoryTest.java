@@ -44,7 +44,11 @@ class SalesOrderItemRepositoryTest {
         assertThat(savedItem.getTaxPrice()).isEqualTo(0);
         assertThat(savedItem.getTotalPrice()).isEqualTo(104000);
         assertThat(savedItem.getActive()).isTrue();
+
+
+
     }
 
-    void
+
+
 }
