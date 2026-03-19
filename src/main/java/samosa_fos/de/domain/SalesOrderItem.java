@@ -41,6 +41,6 @@ public class SalesOrderItem {
     private Boolean active = true;
 
     // JPA 기본 생성자
-    protected SalesOrderItem() {
+    public SalesOrderItem() {
     }
 }
