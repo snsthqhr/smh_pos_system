@@ -1,13 +1,11 @@
-package samosa_fos.de.Repository;
+package samosa_fos.de.repository;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.support.WebContentGenerator;
 import samosa_fos.de.domain.Product;
-import samosa_fos.de.repository.ProductRepository;
 
 
 import java.util.List;
