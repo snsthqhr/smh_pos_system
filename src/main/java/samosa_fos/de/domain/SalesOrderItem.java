@@ -24,6 +24,9 @@ public class SalesOrderItem {
     // 판매 수량
     private Integer quantity;
 
+    // 반품 수량
+    private Integer returnQuantity;
+
     // 판매 당시 단가
     // 고객가격 / 현장가격 / 직접수정 가격
     private Integer unitPrice;
