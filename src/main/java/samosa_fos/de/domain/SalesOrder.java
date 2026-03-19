@@ -50,6 +50,6 @@ public class SalesOrder {
     //삭제 대신 비활성화 처리방식이 맞는듯하다
     private Boolean active = true;
 
-    protected SalesOrder() {
+    public SalesOrder() {
     }
 }

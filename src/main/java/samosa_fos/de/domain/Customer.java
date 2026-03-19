@@ -24,7 +24,7 @@ public class Customer {
 
     private Boolean active = true;//사용여부
 
-    protected  Customer() {}//JPA요구사항임
+    public Customer() {}//JPA요구사항임
 
 
 }
