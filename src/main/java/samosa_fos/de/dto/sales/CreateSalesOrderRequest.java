@@ -3,6 +3,8 @@ package samosa_fos.de.dto.sales;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class CreateSalesOrderRequest {
@@ -27,7 +29,7 @@ public class CreateSalesOrderRequest {
     //판매 메모
     private String memo;
 
-    private List<CreateSalesorderItemRequest> items;
+    private List<CreateSalesOrderItemRequest> items;
 
 
 
