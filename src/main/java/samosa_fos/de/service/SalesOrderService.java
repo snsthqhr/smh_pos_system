@@ -42,6 +42,7 @@ public class SalesOrderService {
         //일단 총금액 0원으로 초기화
         salesOrder.setTotalAmount(0);
 
+        int totalOrderPrice = 0;
 
 
         //id값 생성을 위해서 salesorderId는 데이터베이스에 저장될때 generatevalue를 통해 id 값이 생성된다.
@@ -60,6 +61,10 @@ public class SalesOrderService {
             item.setQuantity(itemRequest.getQuantity());
             item.setUnitPrice(item.getUnitPrice());
 
+            //제품의 반품 내역
+            //제품의 판매 시점에서는 반품이 0인게 당연한것
+            item.setReturnQuantity(0);
+
             //제품의 공급가
             int supplyPrice = itemRequest.getUnitPrice()* item.getQuantity();
             item.setSupplyPrice(supplyPrice);
@@ -73,16 +78,18 @@ public class SalesOrderService {
             }
             item.setTaxPrice(taxPrice);//만약 ADD_VAT가 아니어서 세금이 없어도 계산하는데 지장 없음
 
-            //최종 금액 계산
+            //현재 아이템의 최종 금액 계산
             int totalPrice = supplyPrice + taxPrice;
             item.setTotalPrice(totalPrice);
 
             item.setActive(true);
+            salesOrderItemRepository.save(item);
 
-
+            //이번 총 계산금액 갱신
+            totalOrderPrice += item.getTotalPrice();
         }
-
-        
+        //4. 전표 총액 반영
+        savedSalesOrder.setTotalAmount(totalOrderPrice);
 
         return salesOrder;
     }
