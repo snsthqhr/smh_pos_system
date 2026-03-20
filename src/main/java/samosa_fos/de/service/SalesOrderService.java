@@ -25,7 +25,7 @@ public class SalesOrderService {
     }
 
     //기본베이스는 dto를 활용하여 주입받는다
-    public SalesOrder CreateSalesOrder(CreateSalesOrderRequest request){
+    public SalesOrder createSalesOrder(CreateSalesOrderRequest request){
         //판매전표 헤더 생성
         SalesOrder salesOrder = new SalesOrder();
         salesOrder.setCustomerId(request.getCustomerId());
@@ -42,7 +42,9 @@ public class SalesOrderService {
         //일단 총금액 0원으로 초기화
         salesOrder.setTotalAmount(0);
 
-        int totalOrderPrice = 0;
+        int totalNetAmount = 0;
+        int totalTaxAmount = 0;
+        int totalAmount = 0;
 
 
         //id값 생성을 위해서 salesorderId는 데이터베이스에 저장될때 generatevalue를 통해 id 값이 생성된다.
@@ -59,39 +61,45 @@ public class SalesOrderService {
 
             //제품의 수량
             item.setQuantity(itemRequest.getQuantity());
-            item.setUnitPrice(item.getUnitPrice());
+            item.setUnitPrice(itemRequest.getUnitPrice());
 
             //제품의 반품 내역
             //제품의 판매 시점에서는 반품이 0인게 당연한것
             item.setReturnQuantity(0);
 
-            //제품의 공급가
-            int supplyPrice = itemRequest.getUnitPrice()* item.getQuantity();
-            item.setSupplyPrice(supplyPrice);
+            // 현재 제품의 공급가
+            int curItemSupplyPrice = itemRequest.getUnitPrice()* item.getQuantity();
+            item.setSupplyPrice(curItemSupplyPrice);
 
+            //이 주문의 금액의 공급가
+            totalNetAmount += curItemSupplyPrice;
 
-            //세금계산
+            //현재아이템의 세금계산
             // 지금은 간단히 taxPolicy가 NO_TAX면 0, 아니면 10%처리한다
-            int taxPrice = 0;
+            int curItemTaxPrice = 0;
             if("ADD_VAT".equals(request.getTaxPolicy())){
-                taxPrice = (int) (supplyPrice * 0.1);
+                curItemTaxPrice = (int) (curItemSupplyPrice * 0.1);
             }
-            item.setTaxPrice(taxPrice);//만약 ADD_VAT가 아니어서 세금이 없어도 계산하는데 지장 없음
+            item.setTaxPrice(curItemTaxPrice);//만약 ADD_VAT가 아니어서 세금이 없어도 계산하는데 지장 없음
+            //이 주문의 세금만 총액
+            totalTaxAmount += curItemTaxPrice;
 
             //현재 아이템의 최종 금액 계산
-            int totalPrice = supplyPrice + taxPrice;
-            item.setTotalPrice(totalPrice);
+            int curItemTotalPrice = curItemSupplyPrice + curItemTaxPrice;
+            item.setTotalPrice(curItemTotalPrice);
 
             item.setActive(true);
             salesOrderItemRepository.save(item);
 
             //이번 총 계산금액 갱신
-            totalOrderPrice += item.getTotalPrice();
+            totalAmount += item.getTotalPrice();
         }
         //4. 전표 총액 반영
-        savedSalesOrder.setTotalAmount(totalOrderPrice);
+        savedSalesOrder.setTotalNetAmount(totalNetAmount);
+        savedSalesOrder.setTotalTaxAmount(totalTaxAmount);
+        savedSalesOrder.setTotalAmount(totalAmount);
 
-        return salesOrder;
+        return savedSalesOrder;
     }
 
 
