@@ -7,9 +7,13 @@ import lombok.Setter;
 @Setter
 public class CreateSalesOrderItemRequest {
 
+    //제품의 아이디
     private Long productId;
-    private Long salesOrderId;
+
+    //제품의 수량
     private Integer quantity;
+
+    //제품의 가격
     private Integer unitPrice;
 
 }
