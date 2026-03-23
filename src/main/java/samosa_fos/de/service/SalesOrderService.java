@@ -24,6 +24,7 @@ public class SalesOrderService {
         this.salesOrderItemRepository = salesOrderItemRepository;
     }
 
+
     //기본베이스는 dto를 활용하여 주입받는다
     public SalesOrder createSalesOrder(CreateSalesOrderRequest request){
         //판매전표 헤더 생성
