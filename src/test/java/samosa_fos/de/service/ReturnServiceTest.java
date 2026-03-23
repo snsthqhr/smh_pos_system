@@ -12,6 +12,7 @@ import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -107,5 +108,32 @@ public class ReturnServiceTest {
         returnService.addReturnQuantity(savedItem.getId(), 1);
         assertThat(finditem.getReturnQuantity()).isEqualTo(4);
     }
+
+    @Test
+    @DisplayName("반품 수량 초과 예외 테스트")
+    void return_over_exception() {
+
+        // given
+        SalesOrder order = new SalesOrder();
+        order.setCustomerId(1L);
+        order.setActive(true);
+
+        SalesOrder savedOrder = salesOrderRepository.save(order);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(10L);
+        item.setQuantity(3);
+        item.setReturnQuantity(0);
+        item.setActive(true);
+
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        // when & then
+        assertThatThrownBy(() ->
+                returnService.addReturnQuantity(savedItem.getId(), 4)
+        ).isInstanceOf(IllegalArgumentException.class);
+    }
+
 
 }
