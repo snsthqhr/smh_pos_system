@@ -75,5 +75,37 @@ public class ReturnServiceTest {
 
     @Test
     @DisplayName("반품 누적 테스트")
+    void returnAccumlate() {
+
+        //given
+        SalesOrder order = new SalesOrder();
+        order.setCustomerId(1L);
+        order.setTaxPolicy("NO_TAX");
+        order.setTotalAmount(100000);
+        order.setActive(true);
+
+        SalesOrder savedOrder = salesOrderRepository.save(order);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setQuantity(5);
+        item.setUnitPrice(20000);
+        item.setReturnQuantity(1);
+        item.setSupplyPrice(80000);
+        item.setTotalPrice(80000);
+        item.setActive(true);
+
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        //when
+        returnService.addReturnQuantity(savedItem.getId(), 2);
+
+        //then
+        SalesOrderItem finditem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
+
+        assertThat(finditem.getReturnQuantity()).isEqualTo(3);
+        returnService.addReturnQuantity(savedItem.getId(), 1);
+        assertThat(finditem.getReturnQuantity()).isEqualTo(4);
+    }
 
 }

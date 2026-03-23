@@ -41,7 +41,7 @@ public class ReturnService {
 
         int newReturnQuantity = currentReturnQuantity + returnQunatity;
 
-        if(newReturnQuantity > currentReturnQuantity) {
+        if(newReturnQuantity > item.getQuantity()) {
             throw new IllegalArgumentException("반품 수량이 판매 수량보다 많습니다.");
 
         }
