@@ -70,7 +70,7 @@ public class SalesOrderService {
             item.setUnitPrice(determineUnitPrice(request.getCustomerId(),
                     request.getJobSiteId(),
                     item.getProductId(),
-                    item.getUnitPrice()));
+                    itemRequest.getUnitPrice()));
 
 
             //제품의 반품 내역
@@ -78,7 +78,7 @@ public class SalesOrderService {
             item.setReturnQuantity(0);
 
             // 현재 제품의 공급가
-            int curItemSupplyPrice = itemRequest.getUnitPrice()* item.getQuantity();
+            int curItemSupplyPrice = item.getUnitPrice()* item.getQuantity();
             item.setSupplyPrice(curItemSupplyPrice);
 
             //이 주문의 금액의 공급가
@@ -122,7 +122,10 @@ public class SalesOrderService {
         if(jobSiteId != null){
             CustomerPrice jobSitePrice = customerPriceRepository.findByCustomerIdAndProductIdAndJobSiteIdAndActiveTrue(customerId,productId,jobSiteId)
                     .orElse(null);
-            return jobSitePrice.getPrice();
+            if(jobSitePrice !=null){
+                return jobSitePrice.getPrice();
+            }
+
         }
 
         //3. 고객 기본 가격 조회
@@ -138,7 +141,7 @@ public class SalesOrderService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(()->new IllegalArgumentException("해당 상품이 존재하지 않습니다. + productId"+productId));
         if (product.getSalePrice()==null){
-            product.setSalePrice(0);
+            throw new IllegalArgumentException("상품 기본 가격이 설정되지 않았습니다. productId=" + productId);
         }
         return product.getSalePrice();
 
