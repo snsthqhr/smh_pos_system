@@ -21,7 +21,8 @@ public class SalesOrderService {
 
     public SalesOrderService(SalesOrderRepository salesOrderRepository,
                              SalesOrderItemRepository salesOrderItemRepository,
-                              CustomerPriceRepository customerPriceRepository, ProductRepository productRepository){
+                              CustomerPriceRepository customerPriceRepository,
+                             ProductRepository productRepository){
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.customerPriceRepository = customerPriceRepository;
@@ -39,6 +40,7 @@ public class SalesOrderService {
         salesOrder.setMemo(request.getMemo());
         salesOrder.setTaxPolicy(request.getTaxPolicy());
         salesOrder.setPaymentType(request.getPaymentType());
+
 
 
         //dto로 받을까 그냥 서비스에서 받을까 고민중임.일단 서비스로 구현
