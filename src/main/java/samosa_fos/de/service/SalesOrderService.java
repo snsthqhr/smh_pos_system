@@ -66,9 +66,11 @@ public class SalesOrderService {
 
             //제품의 수량
             item.setQuantity(itemRequest.getQuantity());
-            //제품의 가격 (지금은 상품 기본 가격이지만 1.현장가격,2.고객 기본가격.3상품 기본가격
-            //으로 우선순위를 바꿔야함)
-            //item.setUnitPrice(itemRequest.getUnitPrice());
+
+            item.setUnitPrice(determineUnitPrice(request.getCustomerId(),
+                    request.getJobSiteId(),
+                    item.getProductId(),
+                    item.getUnitPrice()));
 
 
             //제품의 반품 내역
@@ -139,7 +141,7 @@ public class SalesOrderService {
             product.setSalePrice(0);
         }
         return product.getSalePrice();
-        
+
     }
 
 
