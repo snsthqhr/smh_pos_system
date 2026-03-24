@@ -2,14 +2,13 @@ package samosa_fos.de.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import samosa_fos.de.domain.SalesOrder;
-import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.domain.*;
 import samosa_fos.de.dto.sales.CreateSalesOrderItemRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
-import samosa_fos.de.repository.SalesOrderItemRepository;
-import samosa_fos.de.repository.SalesOrderRepository;
+import samosa_fos.de.repository.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @Transactional
@@ -17,11 +16,16 @@ public class SalesOrderService {
 
     private final SalesOrderRepository salesOrderRepository;
     private final SalesOrderItemRepository salesOrderItemRepository;
+    private final CustomerPriceRepository customerPriceRepository;
+    private final ProductRepository productRepository;
 
     public SalesOrderService(SalesOrderRepository salesOrderRepository,
-                             SalesOrderItemRepository salesOrderItemRepository){
+                             SalesOrderItemRepository salesOrderItemRepository,
+                              CustomerPriceRepository customerPriceRepository, ProductRepository productRepository){
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
+        this.customerPriceRepository = customerPriceRepository;
+        this.productRepository = productRepository;
     }
 
 
@@ -43,8 +47,8 @@ public class SalesOrderService {
         //일단 총금액 0원으로 초기화
         salesOrder.setTotalAmount(0);
 
-        int totalNetAmount = 0;
-        int totalTaxAmount = 0;
+        int totalNetAmount = 0;//공급가액
+        int totalTaxAmount = 0;//공급가액*10%
         int totalAmount = 0;
 
 
@@ -62,7 +66,10 @@ public class SalesOrderService {
 
             //제품의 수량
             item.setQuantity(itemRequest.getQuantity());
-            item.setUnitPrice(itemRequest.getUnitPrice());
+            //제품의 가격 (지금은 상품 기본 가격이지만 1.현장가격,2.고객 기본가격.3상품 기본가격
+            //으로 우선순위를 바꿔야함)
+            //item.setUnitPrice(itemRequest.getUnitPrice());
+
 
             //제품의 반품 내역
             //제품의 판매 시점에서는 반품이 0인게 당연한것
@@ -101,6 +108,38 @@ public class SalesOrderService {
         savedSalesOrder.setTotalAmount(totalAmount);
 
         return savedSalesOrder;
+    }
+
+    public Integer determineUnitPrice(Long customerId, Long jobSiteId, Long productId, Integer requestUnitPrice){
+
+        // 1. 사용자가 직접 가격 입력한 경우
+        if(requestUnitPrice != null) {
+            return requestUnitPrice;
+        }
+        // 2. 현장 가격 조회
+        if(jobSiteId != null){
+            CustomerPrice jobSitePrice = customerPriceRepository.findByCustomerIdAndProductIdAndJobSiteIdAndActiveTrue(customerId,productId,jobSiteId)
+                    .orElse(null);
+            return jobSitePrice.getPrice();
+        }
+
+        //3. 고객 기본 가격 조회
+       CustomerPrice customerDefaultPrice = customerPriceRepository
+               .findByCustomerIdAndProductIdAndJobSiteIdIsNullAndActiveTrue(customerId,productId)
+               .orElse(null);
+       if (customerDefaultPrice!=null){
+           return customerDefaultPrice.getPrice();
+       }
+
+
+        //4. 상품 기본 가격 조회
+        Product product = productRepository.findById(productId)
+                .orElseThrow(()->new IllegalArgumentException("해당 상품이 존재하지 않습니다. + productId"+productId));
+        if (product.getSalePrice()==null){
+            product.setSalePrice(0);
+        }
+        return product.getSalePrice();
+        
     }
 
 

@@ -19,4 +19,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
 
     // 활성화된 판매 전표만 조회
     List<SalesOrder> findByActiveTrue();
+
+    //고객 번호와 작업현장으로 조회
+    List<SalesOrder> findByCustomerIdAndJobSiteId(Long customerId, Long jobsiteId);
 }
