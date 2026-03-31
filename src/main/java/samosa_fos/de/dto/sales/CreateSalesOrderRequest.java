@@ -29,7 +29,12 @@ public class CreateSalesOrderRequest {
     //판매 메모
     private String memo;
 
+    //주문에 담긴 아이템들
     private List<CreateSalesOrderItemRequest> items;
+
+    //판매 가격을 고객가격으로 갱신 할 것인지 아닌지
+    // SAVE_PRICE ,ONE_TIME_ONLY
+    private String priceApplyPolicy;
 
 
 

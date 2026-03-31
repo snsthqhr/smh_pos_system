@@ -100,11 +100,20 @@ public class SalesOrderService {
             int curItemTotalPrice = curItemSupplyPrice + curItemTaxPrice;
             item.setTotalPrice(curItemTotalPrice);
 
+
             item.setActive(true);
             salesOrderItemRepository.save(item);
 
             //이번 총 계산금액 갱신
             totalAmount += item.getTotalPrice();
+
+            //아이템의 가격을 CustomerPrcie로 저장 할 지 안 할지 결정하는 함수 호출
+            saveCustomerPricePolicy(
+                    request.getCustomerId(),
+                    request.getJobSiteId(),
+                    item.getProductId(),
+                    item.getUnitPrice(),
+                    request.getPriceApplyPolicy());
         }
         //4. 전표 총액 반영
         savedSalesOrder.setTotalNetAmount(totalNetAmount);
@@ -149,5 +158,31 @@ public class SalesOrderService {
 
     }
 
+
+    private void saveCustomerPricePolicy(
+            Long customerId,
+            Long jobSiteId,
+            Long productId,
+            Integer unitPrice,
+            String pricePolicy){
+
+        if ("ONE_TIME_ONLY".equals(pricePolicy)){
+            return;
+        }
+
+        if (pricePolicy.equals("SAVE_PRICE")){
+            CustomerPrice customerPrice = new CustomerPrice();
+            customerPrice.setCustomerId();
+            customerPrice.setPrice();
+            customerPrice.setActive();
+            customerPrice.setProductId();
+
+            CustomerPrice savedCustomerPrice = customerPriceRepository.save(customerPrice);
+
+        }
+        else {
+
+        }
+    }
 
 }
