@@ -166,23 +166,67 @@ public class SalesOrderService {
             Integer unitPrice,
             String pricePolicy){
 
-        if ("ONE_TIME_ONLY".equals(pricePolicy)){
+        // 이번만 적용이면 저장하지 않음
+        if ("ONE_TIME_ONLY".equals(pricePolicy)) {
             return;
         }
 
-        if (pricePolicy.equals("SAVE_PRICE")){
-            CustomerPrice customerPrice = new CustomerPrice();
-            customerPrice.setCustomerId();
-            customerPrice.setPrice();
-            customerPrice.setActive();
-            customerPrice.setProductId();
-
-            CustomerPrice savedCustomerPrice = customerPriceRepository.save(customerPrice);
-
-        }
-        else {
-
+        // 기본값은 저장하는 정책으로 본다
+        if (jobSiteId != null) {
+            saveOrUpdateJobSitePrice(customerId, jobSiteId, productId, unitPrice);
+        } else {
+            saveOrUpdateCustomerDefaultPrice(customerId, productId, unitPrice);
         }
     }
+
+    // 고객 기본 가격 저장 또는 수정
+    private void saveOrUpdateCustomerDefaultPrice(Long customerId,
+                                                  Long productId,
+                                                  Integer unitPrice) {
+
+        CustomerPrice customerPrice = customerPriceRepository
+                .findByCustomerIdAndProductIdAndJobSiteIdIsNullAndActiveTrue(customerId, productId)
+                .orElse(null);
+
+        if (customerPrice != null) {
+            customerPrice.setPrice(unitPrice);
+            return;
+        }
+
+        CustomerPrice newCustomerPrice = new CustomerPrice();
+        newCustomerPrice.setCustomerId(customerId);
+        newCustomerPrice.setProductId(productId);
+        newCustomerPrice.setJobSiteId(null);
+        newCustomerPrice.setPrice(unitPrice);
+        newCustomerPrice.setActive(true);
+
+        customerPriceRepository.save(newCustomerPrice);
+    }
+
+    // 현장 가격 저장 또는 수정
+    private void saveOrUpdateJobSitePrice(Long customerId,
+                                          Long jobSiteId,
+                                          Long productId,
+                                          Integer unitPrice) {
+
+        CustomerPrice customerPrice = customerPriceRepository
+                .findByCustomerIdAndProductIdAndJobSiteIdAndActiveTrue(customerId, productId, jobSiteId)
+                .orElse(null);
+
+        if (customerPrice != null) {
+            customerPrice.setPrice(unitPrice);
+            return;
+        }
+
+        CustomerPrice newCustomerPrice = new CustomerPrice();
+        newCustomerPrice.setCustomerId(customerId);
+        newCustomerPrice.setProductId(productId);
+        newCustomerPrice.setJobSiteId(jobSiteId);
+        newCustomerPrice.setPrice(unitPrice);
+        newCustomerPrice.setActive(true);
+
+        customerPriceRepository.save(newCustomerPrice);
+    }
+
 
 }
