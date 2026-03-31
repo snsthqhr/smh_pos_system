@@ -102,4 +102,46 @@ public class ArTxRepositoryTest {
 
     }
 
+    @Test
+    @DisplayName("고객별 현재 미수금 합계 계산 테스트")
+    void calculateCurrentArAmount() {
+        //given
+        ArTx tx1 = new ArTx();
+        tx1.setCustomerId(1L);
+        tx1.setTxDate(LocalDate.now());
+        tx1.setTxType("SALE");
+        tx1.setAmount(500000);
+        tx1.setActive(true);
+
+        ArTx tx2 = new ArTx();
+        tx2.setCustomerId(1L);
+        tx2.setTxDate(LocalDate.now());
+        tx2.setTxType("PAYMENT");
+        tx2.setAmount(-200000);
+        tx2.setActive(true);
+
+        ArTx tx3 = new ArTx();
+        tx3.setCustomerId(1L);
+        tx3.setTxDate(LocalDate.now());
+        tx3.setTxType("RETURN");
+        tx3.setAmount(-50000);
+        tx3.setActive(true);
+
+        arTxRepository.save(tx1);
+        arTxRepository.save(tx2);
+        arTxRepository.save(tx3);
+
+        //when
+
+        List<ArTx> txList = arTxRepository.findByCustomerId(1L);
+
+
+        //then
+
+        int balance = txList.stream()
+                .mapToInt(ArTx::getAmount).sum();//ArTx를 객체를 Artx객체 안에 있는 int값으로 변환 해준다.
+
+        assertThat(balance).isEqualTo(250000);
+    }
+
 }
