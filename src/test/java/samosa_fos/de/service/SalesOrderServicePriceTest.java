@@ -6,10 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import samosa_fos.de.domain.CustomerPrice;
-import samosa_fos.de.domain.Product;
-import samosa_fos.de.domain.SalesOrder;
-import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.domain.*;
 import samosa_fos.de.dto.sales.CreateSalesOrderItemRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.repository.CustomerPriceRepository;
@@ -152,6 +149,102 @@ public class SalesOrderServicePriceTest {
     @Test
     @DisplayName("현장 가격이 없고 고객 기본 가격이 있으면 고객 기본 가격을 사용한다.")
     void createSalesOrder_useCustomerDefaultPrice() {
-        
+
+        // given
+        Product product = new Product();
+        product.setCode("P-102");
+        product.setProductName("우레탄 하도");
+        product.setProductNickname("우레탄");
+        product.setVariant("18L");
+        product.setUnit("말");
+        product.setBrand("삼화");
+        product.setCategory("우레탄");
+        product.setCostPrice(50000);
+        product.setSalePrice(70000);
+        product.setStockQuantity(10);
+        Product savedProduct = productRepository.save(product);
+
+        CreateSalesOrderItemRequest itemRequest = new CreateSalesOrderItemRequest();
+        itemRequest.setQuantity(1);
+        itemRequest.setUnitPrice(null);
+        itemRequest.setProductId(savedProduct.getId());
+
+        List<CreateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        CustomerPrice customerDefaultPrice = new CustomerPrice();
+        customerDefaultPrice.setProductId(savedProduct.getId());
+        customerDefaultPrice.setJobSiteId(null);
+        customerDefaultPrice.setPrice(65000); // 고객 기본 가격
+        customerDefaultPrice.setActive(true);
+        customerPriceRepository.save(customerDefaultPrice);
+
+        CreateSalesOrderRequest request = new CreateSalesOrderRequest();
+        request.setTaxPolicy("NO_TAX");
+        request.setCustomerId(customerDefaultPrice.getCustomerId());
+        request.setMemo("고객 기본 가격 테스트");
+        request.setItems(items);
+        request.setJobSiteId(999L);
+        request.setPaymentType("CARD");
+
+
+        //when
+
+        SalesOrder savedOrder = salesOrderService.createSalesOrder(request);
+
+        //then
+
+        SalesOrderItem savedItem = salesOrderItemRepository.findBySalesOrderId(savedOrder.getId()).get(0);
+
+        assertThat(savedItem.getUnitPrice()).isEqualTo(65000);
+        assertThat(savedItem.getSupplyPrice()).isEqualTo(65000);
+        assertThat(savedItem.getTotalPrice()).isEqualTo(65000);
     }
+
+    @Test
+    @DisplayName("현장 가격과 고객 가격이 없으면 상품 기본 가격을 사용한다")
+    void createSalesOrder_useProductSalePrice() {
+
+        // given
+        Product product = new Product();
+        product.setCode("P-103");
+        product.setProductName("붓");
+        product.setProductNickname("붓");
+        product.setVariant("중");
+        product.setUnit("개");
+        product.setBrand("기타");
+        product.setCategory("붓");
+        product.setCostPrice(2000);
+        product.setSalePrice(5000); // 상품 기본 가격
+        product.setStockQuantity(50);
+        Product savedProduct = productRepository.save(product);
+
+        CreateSalesOrderItemRequest itemRequest = new CreateSalesOrderItemRequest();
+        itemRequest.setProductId(savedProduct.getId());
+        itemRequest.setQuantity(3);
+        itemRequest.setUnitPrice(null);
+
+        List<CreateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        CreateSalesOrderRequest request = new CreateSalesOrderRequest();
+        request.setCustomerId(3L);
+        request.setJobSiteId(null);
+        request.setPaymentType("CARD");
+        request.setTaxPolicy("NO_TAX");
+        request.setMemo("상품 기본 가격 테스트");
+        request.setItems(items);
+
+        // when
+        SalesOrder savedOrder = salesOrderService.createSalesOrder(request);
+
+        // then
+        SalesOrderItem savedItem = salesOrderItemRepository.findBySalesOrderId(savedOrder.getId()).get(0);
+
+        assertThat(savedItem.getUnitPrice()).isEqualTo(5000);
+        assertThat(savedItem.getSupplyPrice()).isEqualTo(15000);
+        assertThat(savedOrder.getTotalAmount()).isEqualTo(15000);
+    }
+
+
 }
