@@ -42,7 +42,7 @@ public class Payment {
     // 사용 여부
     private Boolean active = true;
 
-    protected Payment() {
+    public Payment() {
     }
 
 }
