@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import samosa_fos.de.domain.CustomerPrice;
 import samosa_fos.de.domain.Product;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
@@ -14,6 +15,7 @@ import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.repository.CustomerPriceRepository;
 import samosa_fos.de.repository.ProductRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
+import samosa_fos.de.repository.SalesOrderRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +37,8 @@ public class SalesOrderServicePriceTest {
 
     @Autowired
     SalesOrderItemRepository salesOrderItemRepository;
+    @Autowired
+    private SalesOrderRepository salesOrderRepository;
 
     @Test
     @DisplayName("직접 입력 가격이 있으면 직접 입력 가격을 사용한다")
@@ -86,6 +90,8 @@ public class SalesOrderServicePriceTest {
     @Test
     @DisplayName("직접 입력 가격이 없고 현장이 있으면 직접 입력 가격을 사용한다")
     void creaateSalesOrderUseJobsitePrice(){
+
+        //given
         Product product = new Product();
 
         product.setCode("P-100");
@@ -98,5 +104,54 @@ public class SalesOrderServicePriceTest {
         product.setCostPrice(35000);
         product.setSalePrice(60000);
         product.setStockQuantity(10);
+
+        Product savedProduct = productRepository.save(product);
+        //위에 코드는 기본적으로 등록되어 있는 프로덕트라고 생각하면된다.
+
+        CustomerPrice jobSitePrice = new CustomerPrice();
+        jobSitePrice.setCustomerId(1L);
+        jobSitePrice.setProductId(savedProduct.getId());
+        jobSitePrice.setJobSiteId(100L);
+        jobSitePrice.setPrice(27000);
+        jobSitePrice.setActive(true);
+        customerPriceRepository.save(jobSitePrice);
+
+        CreateSalesOrderItemRequest itemRequest = new CreateSalesOrderItemRequest();
+        itemRequest.setProductId(savedProduct.getId());
+        itemRequest.setUnitPrice(null);
+        itemRequest.setQuantity(2);
+
+
+
+        List<CreateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        CreateSalesOrderRequest request = new CreateSalesOrderRequest();
+        request.setJobSiteId(jobSitePrice.getJobSiteId());
+        request.setPaymentType("CARD");
+        request.setMemo("현장 가격 테스트");
+        request.setCustomerId(jobSitePrice.getCustomerId());
+        request.setItems(items);
+        request.setTaxPolicy("NO_TAX");
+
+        //when
+
+        SalesOrder savedOrder = salesOrderService.createSalesOrder(request);
+
+
+        //then
+        SalesOrderItem savedItem = salesOrderItemRepository.findBySalesOrderId(savedOrder.getId()).get(0);
+
+        assertThat(savedItem.getUnitPrice()).isEqualTo(27000);
+        assertThat(savedItem.getSupplyPrice()).isEqualTo(54000);
+        assertThat(savedOrder.getTotalAmount()).isEqualTo(54000);
+
+
+    }
+
+    @Test
+    @DisplayName("현장 가격이 없고 고객 기본 가격이 있으면 고객 기본 가격을 사용한다.")
+    void createSalesOrder_useCustomerDefaultPrice() {
+        
     }
 }
