@@ -8,7 +8,6 @@ import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.repository.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 @Transactional
@@ -18,15 +17,22 @@ public class SalesOrderService {
     private final SalesOrderItemRepository salesOrderItemRepository;
     private final CustomerPriceRepository customerPriceRepository;
     private final ProductRepository productRepository;
+    private final ArTxRepository arTxRepository;
+    private final PaymentRepository paymentRepository;
 
     public SalesOrderService(SalesOrderRepository salesOrderRepository,
                              SalesOrderItemRepository salesOrderItemRepository,
                               CustomerPriceRepository customerPriceRepository,
-                             ProductRepository productRepository){
+                             ProductRepository productRepository,
+                             ArTxRepository arTxRepository,
+                             PaymentRepository paymentRepository){
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.customerPriceRepository = customerPriceRepository;
         this.productRepository = productRepository;
+        this.arTxRepository = arTxRepository;
+        this.paymentRepository = paymentRepository;
+
     }
 
 
@@ -120,7 +126,55 @@ public class SalesOrderService {
         savedSalesOrder.setTotalTaxAmount(totalTaxAmount);
         savedSalesOrder.setTotalAmount(totalAmount);
 
+
+
+
+        //만약 고객이 외상으로 가져갈 경우 미수금으로 등록해야함
+        if(savedSalesOrder.getPaymentType().equals("CREDIT")){
+            handleCreditSale(savedSalesOrder.getPaymentType(),
+                    savedSalesOrder.getTotalAmount(),
+                    savedSalesOrder.getCustomerId(),
+                    savedSalesOrder.getId());
+
+        } else {
+            handleImmediatePayment(savedSalesOrder.getCustomerId(),
+                    savedSalesOrder.getId(),
+                    savedSalesOrder.getPaymentType(),
+                    savedSalesOrder.getTotalAmount()
+                    );
+        }
+
+
         return savedSalesOrder;
+
+
+
+    }
+    //즉시 입금 하는 경우
+    private void handleImmediatePayment(Long customerId,
+                                        Long salesOrderID,
+                                        String PaymentType,
+                                        int totalAmount) {
+
+        Payment payment = new Payment();
+        pay
+
+    }
+
+    //미수로 하는경우
+    private void handleCreditSale(String paymentType,
+                                  int totalAmount,
+                                  Long customerID,
+                                  Long salesOrderId){
+
+        ArTx arTx = new ArTx();
+        arTx.setSalesOrderId(salesOrderId);
+        arTx.setActive(true);
+        arTx.setAmount(totalAmount);
+        arTx.setTxDate(LocalDate.now());
+        arTx.setMemo(null);
+        arTx.setCustomerId(customerID);
+        arTxRepository.save(arTx);
     }
 
     public Integer determineUnitPrice(Long customerId, Long jobSiteId, Long productId, Integer requestUnitPrice){
@@ -227,6 +281,7 @@ public class SalesOrderService {
 
         customerPriceRepository.save(newCustomerPrice);
     }
+
 
 
 }
