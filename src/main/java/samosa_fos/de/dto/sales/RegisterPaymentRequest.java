@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+//수금 등록을 할때 누가, 얼마나,언제,어떤방식으로를 담는 DTO이다.
 @Getter
 @Setter
 public class RegisterPaymentRequest {
