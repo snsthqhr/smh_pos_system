@@ -5,10 +5,12 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.stereotype.Service;
 import samosa_fos.de.domain.ArTx;
+import samosa_fos.de.domain.Payment;
 import samosa_fos.de.dto.sales.RegisterPaymentRequest;
 import samosa_fos.de.repository.ArTxRepository;
 import samosa_fos.de.repository.PaymentRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -24,10 +26,27 @@ public class PaymentService {
         this.paymentRepository = paymentRepository;
     }
 
-    public void registerPayment(RegisterPaymentRequest request){
+    public Payment registerPayment(RegisterPaymentRequest request){
 
         //데이터 검증
         validatePaymentRequest(request);
+
+        //수금 날짜 보정 작업
+        LocalDate paymentDate = request.getPaymentDate() != null
+                ? request.getPaymentDate()
+                : LocalDate.now();
+
+        //  Payment 저장
+        Payment payment = new Payment();
+        payment.setCustomerId(request.getCustomerId());
+        payment.setSalesOrderId(request.getSalesOrderId());
+        payment.setPaymentDate(paymentDate);
+        payment.setAmount(request.getAmount());
+        payment.setPaymentMethod(request.getPaymentMethod());
+        payment.setMemo(request.getMemo());
+        payment.setActive(true);
+
+        Payment savedPayment = paymentRepository.save(payment);
 
         //payment를 artx로 변환하는 과정 이때 금액은 -를 붙여서 artx를 바꿔주어야 한다.
         ArTx paymentToArTx = new ArTx();
@@ -35,13 +54,15 @@ public class PaymentService {
         paymentToArTx.setActive(true);
         paymentToArTx.setMemo(request.getMemo());
         paymentToArTx.setCustomerId(request.getCustomerId());
-        paymentToArTx.setTxDate(request.getPaymentDate());
+        paymentToArTx.setTxDate(paymentDate);
         paymentToArTx.setTxType(request.getPaymentMethod());
         arTxRepository.save(paymentToArTx);
 
         //고객의 전체 미수금 계산
         int curArtx = calculateCurrentArBalance(request.getCustomerId());
 
+
+        return savedPayment;
     }
 
     void validatePaymentRequest(RegisterPaymentRequest request){
