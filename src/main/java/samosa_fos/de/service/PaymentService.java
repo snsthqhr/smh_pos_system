@@ -31,6 +31,15 @@ public class PaymentService {
         //데이터 검증
         validatePaymentRequest(request);
 
+
+        //  현재 미수금 계산
+        int currentArBalance = calculateCurrentArBalance(request.getCustomerId());
+
+        // 초과 수금 검증
+        if (request.getAmount() > currentArBalance) {
+            throw new IllegalArgumentException("현재 미수금보다 많은 금액은 수금할 수 없습니다.");
+        }
+
         //수금 날짜 보정 작업
         LocalDate paymentDate = request.getPaymentDate() != null
                 ? request.getPaymentDate()
@@ -74,7 +83,7 @@ public class PaymentService {
             throw new IllegalArgumentException("customerid는 필수입니다.");
         }
         if(request.getAmount()<=0|| request.getAmount() == null){
-            throw new IllegalArgumentException("수금 금액이 잘못 되었습니다.");
+            throw new IllegalArgumentException("수금 금액은 0보다 커야 합니다.");
         }
         if(request.getPaymentMethod()==null ||request.getPaymentMethod().isBlank()){
             throw  new IllegalArgumentException("결제 방식은 필수입니다.");

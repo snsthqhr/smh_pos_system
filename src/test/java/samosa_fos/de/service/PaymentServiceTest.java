@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -81,5 +82,32 @@ class PaymentServiceTest {
 
     @Test
     @DisplayName("현재 미수금보다 많이 수금하려고 하면 예외 발생")
+    void registerPayment_overBalance_throwException() {
+        // given
+        ArTx saleTx = new ArTx();
+        saleTx.setCustomerId(2L);
+        saleTx.setSalesOrderId(200L);
+        saleTx.setTxDate(LocalDate.of(2026, 4, 1));
+        saleTx.setTxType("SALE");
+        saleTx.setAmount(100000);   // 현재 미수금 100,000
+        saleTx.setMemo("외상 판매");
+        saleTx.setActive(true);
+        arTxRepository.save(saleTx);
+
+        RegisterPaymentRequest request = new RegisterPaymentRequest();
+        request.setCustomerId(2L);
+        request.setSalesOrderId(200L);
+        request.setPaymentDate(LocalDate.of(2026, 4, 2));
+        request.setAmount(150000);  // 초과 수금
+        request.setPaymentMethod("CASH");
+        request.setMemo("초과 수금 테스트");
+
+        // when & then
+        assertThatThrownBy(() -> paymentService.registerPayment(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("현재 미수금보다 많은 금액은 수금할 수 없습니다.");
+
+    }
+
 
 }
