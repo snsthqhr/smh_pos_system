@@ -46,16 +46,18 @@ public class PaymentService {
         payment.setMemo(request.getMemo());
         payment.setActive(true);
 
+
         Payment savedPayment = paymentRepository.save(payment);
 
         //payment를 artx로 변환하는 과정 이때 금액은 -를 붙여서 artx를 바꿔주어야 한다.
         ArTx paymentToArTx = new ArTx();
         paymentToArTx.setAmount(-request.getAmount());
         paymentToArTx.setActive(true);
+        paymentToArTx.setSalesOrderId(savedPayment.getSalesOrderId());
         paymentToArTx.setMemo(request.getMemo());
         paymentToArTx.setCustomerId(request.getCustomerId());
         paymentToArTx.setTxDate(paymentDate);
-        paymentToArTx.setTxType(request.getPaymentMethod());
+        paymentToArTx.setTxType("PAYMENT");// 여기 너무 헷갈린다.
         arTxRepository.save(paymentToArTx);
 
         //고객의 전체 미수금 계산
