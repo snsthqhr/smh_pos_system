@@ -157,5 +157,35 @@ class PaymentServiceTest {
 
     }
 
+    @Test
+    @DisplayName("paymentDate가 없으면 오늘 날짜로 저장된다.")
+    void registerPaymentPaymentWhenDateIsNullUseToday() {
+
+        // given
+        ArTx saleTx = new ArTx();
+        saleTx.setCustomerId(4L);
+        saleTx.setSalesOrderId(400L);
+        saleTx.setTxDate(LocalDate.now());
+        saleTx.setTxType("SALE");
+        saleTx.setAmount(300000);
+        saleTx.setMemo("외상 판매");
+        saleTx.setActive(true);
+        arTxRepository.save(saleTx);
+
+        RegisterPaymentRequest request = new RegisterPaymentRequest();
+        request.setCustomerId(4L);
+        request.setSalesOrderId(400L);
+        request.setPaymentDate(null);
+        request.setAmount(100000);
+        request.setPaymentMethod("CARD");
+        request.setMemo("날짜 미입력 테스트");
+
+        // when
+        Payment savedPayment = paymentService.registerPayment(request);
+
+        // then
+        assertThat(savedPayment.getPaymentDate()).isEqualTo(LocalDate.now());
+
+    }
 
 }
