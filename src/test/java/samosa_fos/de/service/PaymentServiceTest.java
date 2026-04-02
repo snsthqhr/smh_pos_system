@@ -109,5 +109,53 @@ class PaymentServiceTest {
 
     }
 
+    @Test
+    @DisplayName("현재 미수금 계산 테스트")
+    void calculateCurrentArBalance_success() {
+
+
+        // given
+        ArTx saleTx = new ArTx();
+        saleTx.setCustomerId(3L);
+        saleTx.setSalesOrderId(300L);
+        saleTx.setTxDate(LocalDate.of(2026, 4, 1));
+        saleTx.setTxType("SALE");
+        saleTx.setAmount(500000);
+        saleTx.setMemo("외상 판매");
+        saleTx.setActive(true);
+
+        ArTx paymentTx = new ArTx();
+        paymentTx.setCustomerId(3L);
+        paymentTx.setSalesOrderId(300L);
+        paymentTx.setTxDate(LocalDate.of(2026, 4, 3));
+        paymentTx.setTxType("PAYMENT");
+        paymentTx.setAmount(-200000);
+        paymentTx.setMemo("일부 수금");
+        paymentTx.setActive(true);
+
+        ArTx returnTx = new ArTx();
+        returnTx.setCustomerId(3L);
+        returnTx.setSalesOrderId(300L);
+        returnTx.setTxDate(LocalDate.of(2026, 4, 4));
+        returnTx.setTxType("RETURN");
+        returnTx.setAmount(-50000);
+        returnTx.setMemo("반품");
+        returnTx.setActive(true);
+
+        arTxRepository.save(saleTx);
+        arTxRepository.save(paymentTx);
+        arTxRepository.save(returnTx);
+
+        //when
+
+        int balance = paymentService.calculateCurrentArBalance(3L);
+
+        //then
+
+        assertThat(balance).isEqualTo(250000);
+
+
+    }
+
 
 }
