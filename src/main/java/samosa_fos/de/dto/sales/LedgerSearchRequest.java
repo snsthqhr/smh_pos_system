@@ -4,6 +4,8 @@ package samosa_fos.de.dto.sales;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 public class LedgerSearchRequest {
@@ -13,10 +15,10 @@ public class LedgerSearchRequest {
 
 
     // 조회 시작일
-    private Long startDate;
+    private LocalDate startDate;
 
     // 조회 종료일
-    private Long endDate;
+    private LocalDate endDate;
 
     //전체 표시 여부
     private Boolean showAll = true;
