@@ -1,215 +1,311 @@
 package samosa_fos.de.service;
 
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import samosa_fos.de.domain.Payment;
+import samosa_fos.de.domain.Product;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
+
 import samosa_fos.de.dto.sales.LedgerRowDto;
 import samosa_fos.de.dto.sales.LedgerSearchRequest;
-import samosa_fos.de.repository.ArTxRepository;
 import samosa_fos.de.repository.PaymentRepository;
+import samosa_fos.de.repository.ProductRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class LedgerService {
 
+    private final SalesOrderRepository salesOrderRepository;
+    private final SalesOrderItemRepository salesOrderItemRepository;
+    private final PaymentRepository paymentRepository;
+    private final ProductRepository productRepository;
 
-    @Autowired
-    PaymentRepository paymentRepository;
-    @Autowired
-    SalesOrderRepository salesOrderRepository;
-    @Autowired
-    SalesOrderItemRepository salesOrderItemRepository;
-    @Autowired
-    ArTxRepository arTxRepository;
-
-
-    public LedgerService(PaymentRepository paymentRepository,
-                         SalesOrderRepository salesOrderRepository,
+    public LedgerService(SalesOrderRepository salesOrderRepository,
                          SalesOrderItemRepository salesOrderItemRepository,
-                         ArTxRepository arTxRepository) {
-        this.paymentRepository = paymentRepository;
+                         PaymentRepository paymentRepository,
+                         ProductRepository productRepository) {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
-        this.arTxRepository = arTxRepository;
-
-
+        this.paymentRepository = paymentRepository;
+        this.productRepository = productRepository;
     }
 
+    // 거래처 원장 조회
+    public List<LedgerRowDto> getLedgerRows(LedgerSearchRequest request) {
 
-    public  List<LedgerRowDto> LedgerSearch (LedgerSearchRequest request) {
-
-        // request의 고객 아이디 있는지, 시작날짜가 끝나는 날짜보다 작은지 검증
+        // 1. 조회 조건 검증
         validateLedgerSearchRequest(request);
 
-        // 판매 전표 조회(고객아이디로만 조회 하는지, 고객 아이디 + 기간으로 조회 하는지)
+        // 2. 판매 전표 조회
         List<SalesOrder> salesOrders = getSalesOrdersByCondition(request);
 
-        // 판매 전표 원장 행으로 전환
-        List<LedgerRowDto> ledgerRowDtos = new ArrayList<>();
-        ledgerRowDtos.addAll(convertSalesOrdersToLedgerRows(salesOrders));
+        // 3. 판매 전표를 원장 행으로 변환
+        List<LedgerRowDto> ledgerRows = new ArrayList<>();
+        ledgerRows.addAll(convertSalesOrdersToLedgerRows(salesOrders));
 
-        //수금 내역 조회
-
+        // 4. 수금 내역 조회
         List<Payment> payments = getPaymentsByCondition(request);
 
+        // 5. 수금 내역을 원장 행으로 변환
+        ledgerRows.addAll(convertPaymentsToLedgerRows(payments));
 
+        // 6. 반품 행 추가 (추후 고도화)
+        // ledgerRows.addAll(convertReturnsToLedgerRows(request));
 
+        // 7. 거래일자 기준 정렬
+        ledgerRows.sort(
+                Comparator.comparing(LedgerRowDto::getTxDate)
+                        .thenComparing(row -> row.getSalesOrderId() == null ? Long.MAX_VALUE : row.getSalesOrderId())
+                        .thenComparing(row -> Boolean.TRUE.equals(row.getSummaryRow()) ? 1 : 0)
+        );
 
-        return ;
+        // 8. 필터 적용
+        List<LedgerRowDto> filteredRows = applyFilters(request, ledgerRows);
+
+        // 9. 누적잔액 계산
+        calculateRunningBalance(filteredRows);
+
+        return filteredRows;
     }
 
+    // 조회 조건 검증
     private void validateLedgerSearchRequest(LedgerSearchRequest request) {
-        if(request.getCustomerId()==null){
+        if (request.getCustomerId() == null) {
             throw new IllegalArgumentException("customerId는 필수입니다.");
-
         }
 
-        if(request.getStartDate() != null && request.getEndDate()!= null){
-            if(request.getStartDate().isAfter(request.getEndDate())){
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            if (request.getStartDate().isAfter(request.getEndDate())) {
                 throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
             }
         }
-
     }
 
-    private List<SalesOrder> getSalesOrdersByCondition (LedgerSearchRequest request){
+    // 조건에 맞는 판매 전표 조회
+    private List<SalesOrder> getSalesOrdersByCondition(LedgerSearchRequest request) {
 
-        //판매 데이터 중 고객아이디가 있고, 시작,끝나는 날짜가 전달 된 경우
-        if(request.getStartDate()!=null&&request.getEndDate() !=null){
-            return(salesOrderRepository.findByCustomerIdAndSalesDateBetweenAndActiveTrue(
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            return salesOrderRepository.findByCustomerIdAndSalesDateBetweenAndActiveTrue(
                     request.getCustomerId(),
                     request.getStartDate(),
-                    request.getEndDate())
+                    request.getEndDate()
             );
-
-
         }
-        // 시작,끝 데이터가 없고, 커스터머 아이디만 주어진 경우
-        return salesOrderRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
 
+        return salesOrderRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
     }
 
+    // 판매 전표 -> 원장 행 변환
     private List<LedgerRowDto> convertSalesOrdersToLedgerRows(List<SalesOrder> salesOrders) {
 
+        List<LedgerRowDto> rows = new ArrayList<>();
 
-
-        List<LedgerRowDto> ledgerRowDtos = new ArrayList<>();
-
-        for(SalesOrder salesOrder: salesOrders) {
+        for (SalesOrder salesOrder : salesOrders) {
 
             List<SalesOrderItem> items = salesOrderItemRepository.findBySalesOrderId(salesOrder.getId());
 
-
-            //이 주문에 대한 물건의 총 갯수
             int totalQuantity = 0;
 
-            for(SalesOrderItem item : items) {
+            for (SalesOrderItem item : items) {
                 LedgerRowDto row = new LedgerRowDto();
+
+                row.setTxDate(salesOrder.getSalesDate());
                 row.setSalesOrderId(salesOrder.getId());
                 row.setCustomerId(salesOrder.getCustomerId());
-                row.setTxDate(salesOrder.getSalesDate());
 
-                if("CREDIT".equals(salesOrder.getPaymentType())) {
+                // 거래구분
+                if ("CREDIT".equals(salesOrder.getPaymentType())) {
                     row.setTxType("판매(외상)");
-                    row.setArDelta(0); //아이템 줄에는 0
-                }
-                else{
+                    row.setArDelta(0); // 아이템 줄에서는 0
+                } else {
                     row.setTxType("판매(즉시결제)");
-                    row.setArDelta(0); //아이템 줄에는 0
+                    row.setArDelta(0); // 아이템 줄에서는 0
                 }
 
-                //품목 정보
-                // 현재 ProductRepository를 안쓰니 추후 보강 필요
-                //지금은 productNAme, unit은 추후 보강 필요하다.
-                row.setProductName("상품명 조회 연결 예정");
-                row.setUnit("단위 조회 연결 예정");
+                // 상품 정보
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                if (product != null) {
+                    row.setProductName(product.getProductName());
+                    row.setUnit(product.getUnit());
+                } else {
+                    row.setProductName("상품 조회 불가");
+                    row.setUnit(null);
+                }
 
+                // 품목 정보
                 row.setUnitPrice(item.getUnitPrice());
                 row.setQuantity(item.getQuantity());
                 row.setSupplyPrice(item.getSupplyPrice());
                 row.setTaxPrice(item.getTaxPrice());
                 row.setSaleAmount(item.getTotalPrice());
 
-
-                //외상인 경우에는 paymentAmount를 0으로 설정하고,
-                //즉시 입금 한 경우에는 페이먼트의 값을 반영해준다.
+                // 즉시결제는 각 품목 줄에서도 수금금액 표시
                 if ("CREDIT".equals(salesOrder.getPaymentType())) {
                     row.setPaymentAmount(0);
                 } else {
                     row.setPaymentAmount(item.getTotalPrice());
                 }
 
-                //각각의 아이템에 오약이 필요 한게아닌, 주문 하나에 대해 오더가 필요함
                 row.setSummaryRow(false);
-                row.setMemo(row.getMemo());
+                row.setMemo(salesOrder.getMemo());
 
-                ledgerRowDtos.add(row);
+                rows.add(row);
 
                 totalQuantity += item.getQuantity() == null ? 0 : item.getQuantity();
-
             }
 
-            LedgerRowDto summaryRow = createSummaryRow(salesOrder,totalQuantity);
-            ledgerRowDtos.add(summaryRow);
+            // 주문 합계 행 추가
+            LedgerRowDto summaryRow = createOrderSummaryRow(salesOrder, totalQuantity);
+            rows.add(summaryRow);
         }
 
-
-        return ledgerRowDtos;
+        return rows;
     }
 
+    // 주문 합계 행 생성
+    private LedgerRowDto createOrderSummaryRow(SalesOrder salesOrder, int totalQuantity) {
 
-    private LedgerRowDto createSummaryRow(SalesOrder salesOrder, int totalQuantity) {
+        LedgerRowDto row = new LedgerRowDto();
 
-        LedgerRowDto summaryRow = new LedgerRowDto();
+        row.setTxDate(salesOrder.getSalesDate());
+        row.setSalesOrderId(salesOrder.getId());
+        row.setCustomerId(salesOrder.getCustomerId());
+        row.setSummaryRow(true);
 
-        summaryRow.setCustomerId(salesOrder.getCustomerId());
-        summaryRow.setSummaryRow(true);
-        summaryRow.setSalesOrderId(salesOrder.getId());
-        summaryRow.setProductName("[오더 합계}");
-        summaryRow.setTxDate(salesOrder.getSalesDate());
-        summaryRow.setSupplyPrice(salesOrder.getTotalNetAmount());
-        summaryRow.setTaxPrice(salesOrder.getTotalTaxAmount());
-        summaryRow.setSaleAmount(salesOrder.getTotalAmount());
-        summaryRow.setQuantity(totalQuantity);
+        row.setTxType("오더합계");
+        row.setProductName("[오더 합계]");
+        row.setUnit(null);
+        row.setUnitPrice(null);
+        row.setQuantity(totalQuantity);
 
-        if("CREDIT".equals(salesOrder.getPaymentType())){
-            summaryRow.setTxType("오더합계");
-            summaryRow.setArDelta(salesOrder.getTotalAmount());
-            summaryRow.setPaymentAmount(0);//수금은 0원
-        } else{
-            summaryRow.setTxType("오더합계");
-            summaryRow.setPaymentAmount(salesOrder.getTotalAmount());
-            summaryRow.setArDelta(0); //미수는 변화 없음
+        row.setSupplyPrice(salesOrder.getTotalNetAmount());
+        row.setTaxPrice(salesOrder.getTotalTaxAmount());
+        row.setSaleAmount(salesOrder.getTotalAmount());
+        row.setMemo(salesOrder.getMemo());
+
+        if ("CREDIT".equals(salesOrder.getPaymentType())) {
+            row.setPaymentAmount(0);
+            row.setArDelta(salesOrder.getTotalAmount());
+        } else {
+            row.setPaymentAmount(salesOrder.getTotalAmount());
+            row.setArDelta(0);
         }
 
-        return  summaryRow;
+        return row;
     }
 
-    private List<Payment> getPaymentsByCondition(LedgerSearchRequest request){
+    // 조건에 맞는 수금 내역 조회
+    private List<Payment> getPaymentsByCondition(LedgerSearchRequest request) {
 
-        List<Payment> payments = new ArrayList<>();
-        if (request.getStartDate()!=null && request.getEndDate() != null){
-            return paymentRepository.findByCustomerIdAndPaymentDateBetween(request.getCustomerId(),
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            return paymentRepository.findByCustomerIdAndPaymentDateBetween(
+                    request.getCustomerId(),
                     request.getStartDate(),
-                    request.getEndDate());
-
+                    request.getEndDate()
+            );
         }
+
         return paymentRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
-
-
     }
 
+    // 수금 내역 -> 원장 행 변환
+    private List<LedgerRowDto> convertPaymentsToLedgerRows(List<Payment> payments) {
+
+        List<LedgerRowDto> rows = new ArrayList<>();
+
+        for (Payment payment : payments) {
+
+            LedgerRowDto row = new LedgerRowDto();
+
+            // 기본 정보
+            row.setTxDate(payment.getPaymentDate());
+            row.setSalesOrderId(payment.getSalesOrderId());
+            row.setCustomerId(payment.getCustomerId());
+            row.setTxType("수금");
+
+            // 품목 관련 없음
+            row.setProductName(null);
+            row.setUnit(null);
+            row.setUnitPrice(null);
+            row.setQuantity(null);
+
+            // 금액 정보
+            row.setSupplyPrice(0);
+            row.setTaxPrice(0);
+            row.setSaleAmount(0);
+
+            // 수금금액은 표시용
+            row.setPaymentAmount(payment.getAmount());
+
+            // Payment에서는 미수금 변화를 직접 반영하지 않음
+            // 미수금 변화는 ArTx 기준으로만 처리
+            row.setArDelta(0);
+
+            row.setSummaryRow(false);
+            row.setMemo(payment.getMemo());
+
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    // 필터 적용
+    private List<LedgerRowDto> applyFilters(LedgerSearchRequest request, List<LedgerRowDto> rows) {
+
+        if (Boolean.TRUE.equals(request.getShowAll())) {
+            return rows;
+        }
+
+        List<LedgerRowDto> filtered = new ArrayList<>();
+
+        for (LedgerRowDto row : rows) {
+
+            String txType = row.getTxType();
+
+            if ("판매(외상)".equals(txType) && Boolean.TRUE.equals(request.getShowCreditSales())) {
+                filtered.add(row);
+                continue;
+            }
+
+            if ("판매(즉시결제)".equals(txType) && Boolean.TRUE.equals(request.getShowImmediateSales())) {
+                filtered.add(row);
+                continue;
+            }
+
+            if ("수금".equals(txType) && Boolean.TRUE.equals(request.getShowPayments())) {
+                filtered.add(row);
+                continue;
+            }
+
+            if ("반품".equals(txType) && Boolean.TRUE.equals(request.getShowReturns())) {
+                filtered.add(row);
+                continue;
+            }
+
+            if ("오더합계".equals(txType)) {
+                filtered.add(row);
+            }
+        }
+
+        return filtered;
+    }
+
+    // 누적잔액 계산
+    private void calculateRunningBalance(List<LedgerRowDto> rows) {
+
+        int balance = 0;
+
+        for (LedgerRowDto row : rows) {
+            balance += row.getArDelta() == null ? 0 : row.getArDelta();
+            row.setBalance(balance);
+        }
+    }
 }
-
-
-
-
