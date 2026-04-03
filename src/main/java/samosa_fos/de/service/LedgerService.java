@@ -3,6 +3,7 @@ package samosa_fos.de.service;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import samosa_fos.de.domain.Payment;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
 import samosa_fos.de.dto.sales.LedgerRowDto;
@@ -55,6 +56,10 @@ public class LedgerService {
         // 판매 전표 원장 행으로 전환
         List<LedgerRowDto> ledgerRowDtos = new ArrayList<>();
         ledgerRowDtos.addAll(convertSalesOrdersToLedgerRows(salesOrders));
+
+        //수금 내역 조회
+
+        List<Payment> payments = getPaymentsByCondition(request);
 
 
 
@@ -153,7 +158,7 @@ public class LedgerService {
 
             }
 
-            LedgerRowDto summaryRow = createSummaryRow(salesOrder);
+            LedgerRowDto summaryRow = createSummaryRow(salesOrder,totalQuantity);
             ledgerRowDtos.add(summaryRow);
         }
 
@@ -162,11 +167,43 @@ public class LedgerService {
     }
 
 
-    private LedgerRowDto createSummaryRow(SalesOrder salesOrder) {
+    private LedgerRowDto createSummaryRow(SalesOrder salesOrder, int totalQuantity) {
 
         LedgerRowDto summaryRow = new LedgerRowDto();
 
-        
+        summaryRow.setCustomerId(salesOrder.getCustomerId());
+        summaryRow.setSummaryRow(true);
+        summaryRow.setSalesOrderId(salesOrder.getId());
+        summaryRow.setProductName("[오더 합계}");
+        summaryRow.setTxDate(salesOrder.getSalesDate());
+        summaryRow.setSupplyPrice(salesOrder.getTotalNetAmount());
+        summaryRow.setTaxPrice(salesOrder.getTotalTaxAmount());
+        summaryRow.setSaleAmount(salesOrder.getTotalAmount());
+        summaryRow.setQuantity(totalQuantity);
+
+        if("CREDIT".equals(salesOrder.getPaymentType())){
+            summaryRow.setTxType("오더합계");
+            summaryRow.setArDelta(salesOrder.getTotalAmount());
+            summaryRow.setPaymentAmount(0);//수금은 0원
+        } else{
+            summaryRow.setTxType("오더합계");
+            summaryRow.setPaymentAmount(salesOrder.getTotalAmount());
+            summaryRow.setArDelta(0); //미수는 변화 없음
+        }
+
+        return  summaryRow;
+    }
+
+    private List<Payment> getPaymentsByCondition(LedgerSearchRequest request){
+
+        List<Payment> payments = new ArrayList<>();
+        if (request.getStartDate()!=null && request.getEndDate() != null){
+            return paymentRepository.findByCustomerIdAndPaymentDateBetween(request.getCustomerId(),
+                    request.getStartDate(),
+                    request.getEndDate());
+
+        }
+        return paymentRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
 
 
     }

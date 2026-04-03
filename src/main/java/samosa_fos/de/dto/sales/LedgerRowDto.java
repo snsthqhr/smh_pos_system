@@ -15,6 +15,7 @@ public class LedgerRowDto {
 
     // 거래구분
     // 예: 판매(외상), 판매(즉시결제), 반품, 수금, 오더합계
+    //오더합계는 서머리에서만 사용
     private String txType;
 
     // 같은 주문끼리 묶어보기 위한 값
