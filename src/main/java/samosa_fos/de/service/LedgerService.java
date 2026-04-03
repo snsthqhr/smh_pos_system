@@ -48,6 +48,8 @@ public class LedgerService {
         // request의 고객 아이디 있는지, 시작날짜가 끝나는 날짜보다 작은지 검증
         validateLedgerSearchRequest(request);
 
+        //
+
 
 
 
@@ -62,7 +64,7 @@ public class LedgerService {
 
         if(request.getStartDate() != null && request.getEndDate()!= null){
             if(request.getStartDate().isAfter(request.getEndDate())){
-                throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.")
+                throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
             }
         }
 
@@ -70,8 +72,18 @@ public class LedgerService {
 
     private List<SalesOrder> getSalesOrdersByCondition (LedgerSearchRequest request){
 
+        //판매 데이터 중 고객아이디가 있고, 시작,끝나는 날짜가 전달 된 경우
+        if(request.getStartDate()!=null&&request.getEndDate() !=null){
+            return(salesOrderRepository.findByCustomerIdAndSalesDateBetweenAndActiveTrue(
+                    request.getCustomerId(),
+                    request.getStartDate(),
+                    request.getEndDate())
+            );
 
 
+        }
+        // 시작,끝 데이터가 없고, 커스터머 아이디만 주어진 경우
+        return salesOrderRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
 
     }
 
