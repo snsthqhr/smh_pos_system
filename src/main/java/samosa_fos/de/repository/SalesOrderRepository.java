@@ -8,18 +8,27 @@ import java.util.List;
 
 public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
 
-    // 특정 고객의 판매 전표 조회
+    // 특정 고객의 전체 판매 전표 조회
     List<SalesOrder> findByCustomerId(Long customerId);
 
-    // 특정 날짜의 판매 전표 조회
+    // 특정 고객의 활성 판매 전표 조회
+    List<SalesOrder> findByCustomerIdAndActiveTrue(Long customerId);
+
+    // 특정 고객의 기간별 판매 전표 조회
+    List<SalesOrder> findByCustomerIdAndSalesDateBetween(Long customerId, LocalDate startDate, LocalDate endDate);
+
+    // 특정 고객의 기간별 활성 판매 전표 조회
+    List<SalesOrder> findByCustomerIdAndSalesDateBetweenAndActiveTrue(Long customerId, LocalDate startDate, LocalDate endDate);
+
+    // 특정 날짜의 전체 판매 전표 조회
     List<SalesOrder> findBySalesDate(LocalDate salesDate);
 
-    // 특정 고객 + 특정 날짜의 판매 전표 조회
-    List<SalesOrder> findByCustomerIdAndSalesDate(Long customerId, LocalDate salesDate);
+    // 특정 날짜의 전체 활성 판매 전표 조회
+    List<SalesOrder> findBySalesDateAndActiveTrue(LocalDate salesDate);
 
-    // 활성화된 판매 전표만 조회
-    List<SalesOrder> findByActiveTrue();
+    // 특정 기간의 전체 판매 전표 조회
+    List<SalesOrder> findBySalesDateBetween(LocalDate startDate, LocalDate endDate);
 
-    //고객 번호와 작업현장으로 조회
-    List<SalesOrder> findByCustomerIdAndJobSiteId(Long customerId, Long jobsiteId);
+    // 특정 기간의 전체 활성 판매 전표 조회
+    List<SalesOrder> findBySalesDateBetweenAndActiveTrue(LocalDate startDate, LocalDate endDate);
 }

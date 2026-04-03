@@ -16,4 +16,7 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
     // 활성화된 판매 항목만 조회
     List<SalesOrderItem> findByActiveTrue();
 
+    // 여러 판매 전표의 품목 조회
+    List<SalesOrderItem> findBySalesOrderIdIn(List<Long> salesOrderIds);
+
 }
