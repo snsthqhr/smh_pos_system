@@ -290,6 +290,7 @@ public class LedgerService {
 
             // 변경: 수금의 잔액 감소는 ArTx(PAYMENT)에서 가져옴
             ArTx paymentArTx = findMatchingPaymentArTx(payment, arTxList);
+            //수금, 미수금이 동일한 것이 정상적으로 확인 되었다면, 즉 즉시 수금이 확인 되었다면
             if (paymentArTx != null) {
                 row.setArDelta(paymentArTx.getAmount()); // 보통 음수
             } else {
@@ -312,12 +313,13 @@ public class LedgerService {
             if (!"PAYMENT".equals(arTx.getTxType())) {
                 continue;
             }
-
+            //같은 고객인지 확인하는 값
             boolean sameCustomer = payment.getCustomerId().equals(arTx.getCustomerId());
-
+            //같은 오더에 대한 주문인지 확인하는값
             boolean sameSalesOrder;
-            if (payment.getSalesOrderId() == null) {
-                sameSalesOrder = arTx.getSalesOrderId() == null;
+            //주문 번호가 없는 데이터들끼리 짝을 이루어주는것, 즉 둘다 null일경우 짝을 이루어줌
+            if (payment.getSalesOrderId() == null) {//둘다 null인지 확인 하는 로직
+                sameSalesOrder = arTx.getSalesOrderId() == null;//Artx도 null이고 이게 트루라면 sameSalesOrder에 넣어라 라는뜻
             } else {
                 sameSalesOrder = payment.getSalesOrderId().equals(arTx.getSalesOrderId());
             }
