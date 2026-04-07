@@ -2,18 +2,13 @@ package samosa_fos.de.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import samosa_fos.de.domain.Payment;
-import samosa_fos.de.domain.Product;
-import samosa_fos.de.domain.SalesOrder;
-import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.domain.*;
 
 import samosa_fos.de.dto.sales.LedgerRowDto;
 import samosa_fos.de.dto.sales.LedgerSearchRequest;
-import samosa_fos.de.repository.PaymentRepository;
-import samosa_fos.de.repository.ProductRepository;
-import samosa_fos.de.repository.SalesOrderItemRepository;
-import samosa_fos.de.repository.SalesOrderRepository;
+import samosa_fos.de.repository.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,15 +21,18 @@ public class LedgerService {
     private final SalesOrderItemRepository salesOrderItemRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final ArTxRepository arTxRepository;
 
     public LedgerService(SalesOrderRepository salesOrderRepository,
                          SalesOrderItemRepository salesOrderItemRepository,
                          PaymentRepository paymentRepository,
-                         ProductRepository productRepository) {
+                         ProductRepository productRepository,
+                         ArTxRepository arTxRepository) {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
+        this.arTxRepository = arTxRepository;
     }
 
     // 거래처 원장 조회
@@ -45,6 +43,12 @@ public class LedgerService {
 
         // 2. 판매 전표 조회
         List<SalesOrder> salesOrders = getSalesOrdersByCondition(request);
+
+        // 2.5 시작 미수금 잔액 계산
+        int openingBalance = calculateOpeningBalance(
+                request.getCustomerId(),
+                request.getStartDate()
+        );
 
         // 3. 판매 전표를 원장 행으로 변환
         List<LedgerRowDto> ledgerRows = new ArrayList<>();
@@ -73,6 +77,19 @@ public class LedgerService {
         calculateRunningBalance(filteredRows);
 
         return filteredRows;
+    }
+
+    private int calculateOpeningBalance(Long customerId, LocalDate startDate) {
+
+        if (startDate == null)
+            return 0;
+
+        List<ArTx> dateBeforeArTx = arTxRepository.findByCustomerIdAndTxDateBeforeAndActiveTrue(customerId,startDate);
+
+        return dateBeforeArTx.stream()
+                .mapToInt(ArTx::getAmount)
+                .sum();
+
     }
 
     // 조회 조건 검증

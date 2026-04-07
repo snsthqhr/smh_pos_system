@@ -25,4 +25,6 @@ public interface ArTxRepository extends JpaRepository<ArTx, Long> {
 
     // 특정 고객 + 거래유형 기준 조회
     List<ArTx> findByCustomerIdAndTxType(Long customerId, String txType);
+
+    List<ArTx> findByCustomerIdAndTxDateBeforeAndActiveTrue(Long customerId, LocalDate Date);
 }
