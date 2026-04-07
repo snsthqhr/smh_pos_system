@@ -3,7 +3,6 @@ package samosa_fos.de.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import samosa_fos.de.domain.*;
-
 import samosa_fos.de.dto.sales.LedgerRowDto;
 import samosa_fos.de.dto.sales.LedgerSearchRequest;
 import samosa_fos.de.repository.*;
@@ -50,6 +49,9 @@ public class LedgerService {
                 request.getStartDate()
         );
 
+        // 2.6 기간 내 ArTx 조회 추가
+        List<ArTx> arTxList = getArTxByCondition(request);
+
         // 3. 판매 전표를 원장 행으로 변환
         List<LedgerRowDto> ledgerRows = new ArrayList<>();
         ledgerRows.addAll(convertSalesOrdersToLedgerRows(salesOrders));
@@ -58,7 +60,11 @@ public class LedgerService {
         List<Payment> payments = getPaymentsByCondition(request);
 
         // 5. 수금 내역을 원장 행으로 변환
-        ledgerRows.addAll(convertPaymentsToLedgerRows(payments));
+        // 기존
+        // ledgerRows.addAll(convertPaymentsToLedgerRows(payments));
+
+        // 변경: Payment 행의 arDelta를 ArTx(PAYMENT) 기준으로 반영하기 위해 arTxList도 같이 넘김
+        ledgerRows.addAll(convertPaymentsToLedgerRows(payments, arTxList));
 
         // 6. 반품 행 추가 (추후 고도화)
         // ledgerRows.addAll(convertReturnsToLedgerRows(request));
@@ -84,12 +90,25 @@ public class LedgerService {
         if (startDate == null)
             return 0;
 
-        List<ArTx> dateBeforeArTx = arTxRepository.findByCustomerIdAndTxDateBeforeAndActiveTrue(customerId,startDate);
+        List<ArTx> dateBeforeArTx = arTxRepository.findByCustomerIdAndTxDateBeforeAndActiveTrue(customerId, startDate);
 
         return dateBeforeArTx.stream()
                 .mapToInt(ArTx::getAmount)
                 .sum();
+    }
 
+    // 기간 내 ArTx 조회 추가
+    private List<ArTx> getArTxByCondition(LedgerSearchRequest request) {
+
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            return arTxRepository.findByCustomerIdAndTxDateBetween(
+                    request.getCustomerId(),
+                    request.getStartDate(),
+                    request.getEndDate()
+            );
+        }
+
+        return arTxRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
     }
 
     // 조회 조건 검증
@@ -233,7 +252,11 @@ public class LedgerService {
     }
 
     // 수금 내역 -> 원장 행 변환
-    private List<LedgerRowDto> convertPaymentsToLedgerRows(List<Payment> payments) {
+    // 기존
+    // private List<LedgerRowDto> convertPaymentsToLedgerRows(List<Payment> payments) {
+
+    // 변경: ArTx(PAYMENT) 매칭을 위해 arTxList도 받음
+    private List<LedgerRowDto> convertPaymentsToLedgerRows(List<Payment> payments, List<ArTx> arTxList) {
 
         List<LedgerRowDto> rows = new ArrayList<>();
 
@@ -261,9 +284,17 @@ public class LedgerService {
             // 수금금액은 표시용
             row.setPaymentAmount(payment.getAmount());
 
+            // 기존
             // Payment에서는 미수금 변화를 직접 반영하지 않음
-            // 미수금 변화는 ArTx 기준으로만 처리
-            row.setArDelta(0);
+            // row.setArDelta(0);
+
+            // 변경: 수금의 잔액 감소는 ArTx(PAYMENT)에서 가져옴
+            ArTx paymentArTx = findMatchingPaymentArTx(payment, arTxList);
+            if (paymentArTx != null) {
+                row.setArDelta(paymentArTx.getAmount()); // 보통 음수
+            } else {
+                row.setArDelta(0);
+            }
 
             row.setSummaryRow(false);
             row.setMemo(payment.getMemo());
@@ -272,6 +303,34 @@ public class LedgerService {
         }
 
         return rows;
+    }
+
+    // Payment와 연결된 ArTx(PAYMENT) 찾기
+    private ArTx findMatchingPaymentArTx(Payment payment, List<ArTx> arTxList) {
+
+        for (ArTx arTx : arTxList) {
+            if (!"PAYMENT".equals(arTx.getTxType())) {
+                continue;
+            }
+
+            boolean sameCustomer = payment.getCustomerId().equals(arTx.getCustomerId());
+
+            boolean sameSalesOrder;
+            if (payment.getSalesOrderId() == null) {
+                sameSalesOrder = arTx.getSalesOrderId() == null;
+            } else {
+                sameSalesOrder = payment.getSalesOrderId().equals(arTx.getSalesOrderId());
+            }
+
+            boolean sameAmount = payment.getAmount().equals(Math.abs(arTx.getAmount()));
+            boolean sameDate = payment.getPaymentDate().equals(arTx.getTxDate());
+
+            if (sameCustomer && sameSalesOrder && sameAmount && sameDate) {
+                return arTx;
+            }
+        }
+
+        return null;
     }
 
     // 필터 적용
