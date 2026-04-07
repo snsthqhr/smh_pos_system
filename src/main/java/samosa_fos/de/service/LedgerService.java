@@ -74,7 +74,7 @@ public class LedgerService {
         List<LedgerRowDto> filteredRows = applyFilters(request, ledgerRows);
 
         // 9. 누적잔액 계산
-        calculateRunningBalance(filteredRows);
+        calculateRunningBalance(filteredRows, openingBalance);
 
         return filteredRows;
     }
@@ -316,9 +316,9 @@ public class LedgerService {
     }
 
     // 누적잔액 계산
-    private void calculateRunningBalance(List<LedgerRowDto> rows) {
+    private void calculateRunningBalance(List<LedgerRowDto> rows, int openingBalance) {
 
-        int balance = 0;
+        int balance = openingBalance;
 
         for (LedgerRowDto row : rows) {
             balance += row.getArDelta() == null ? 0 : row.getArDelta();
