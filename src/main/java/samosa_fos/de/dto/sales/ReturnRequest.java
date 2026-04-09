@@ -11,6 +11,8 @@ public class ReturnRequest {
     //반품 할 제품의 아이디
     private Long salesOrderItemId;
 
+    //메모
+    private String memo;
 
     //반품 할 수량
     private int returnQuantity;

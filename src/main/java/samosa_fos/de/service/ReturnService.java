@@ -18,6 +18,7 @@ public class ReturnService {
 
     private final SalesOrderRepository salesOrderRepository;
     private final SalesOrderItemRepository salesOrderItemRepository;
+    
 
     public ReturnService(SalesOrderRepository salesOrderRepository,
                          SalesOrderItemRepository salesOrderItemRepository) {
@@ -49,6 +50,12 @@ public class ReturnService {
         //3. 반품 수량 반영
         item.setReturnQuantity(newReturnQuantity);
 
+
+
+
+
+        /* 기존에는 salesOrder자체의 값을 변동하는 식으로 하려했지만, 이거보다는
+        반품 수량 관리, 기존데이터 유지를 위해서 거래처원장 조회, 미수금 조회 할때만 하려고 생각중이다.
 
         // 4. 해당 전표 다시 계산
         Long salesOrderId = item.getSalesOrderId();
@@ -87,6 +94,9 @@ public class ReturnService {
             totalTaxAmount += taxPrice;
             totalAmount += totalPrice;
         }
+
+        */
+
 
     }
 
