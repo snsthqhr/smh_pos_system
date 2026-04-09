@@ -388,54 +388,63 @@ public class LedgerService {
     }
 
     //반품을 한 줄로 바꿔주는 함수
-    private List<LedgerRowDto> convertReturnsToLedgerRows(List<ArTx> arTxList){
-
+    private List<LedgerRowDto> convertReturnsToLedgerRows(List<ArTx> arTxList) {
 
         List<LedgerRowDto> rows = new ArrayList<>();
 
-
         for (ArTx arTx : arTxList) {
 
-            // ArTx중에 반품인 것만을 가려내야 한다.
-            if (!"RETURN".equals(arTx.getTxType())){
-                continue;;
-            }//!!!!!!!!!!!!!!!!!! 여기서부터 수정 필요
-
-
-
-            List<SalesOrderItem> items = salesOrderItemRepository.findBySalesOrderId(arTx.getSalesOrderId());
-
-
-            for (SalesOrderItem item : items) {
-                if (item.getReturnQuantity() == null || item.getReturnQuantity() <= 0) {
-                    continue;
-                }
-
-
-                //제품 정보(품명,단위, 반품수량)
-                Product product = productRepository.findById(item.getProductId()).orElse(null);
-                LedgerRowDto row = new LedgerRowDto();
-
-                if (product != null) {
-                    row.setProductName(product.getProductName());
-                    row.setUnit(product.getUnit());
-                } else {
-                    row.setProductName("상품 조회 불가");
-                    row.setUnit(null);
-                }
-
-
-
-                row.setPaymentAmount(null);
-                row.setQuantity(item.getReturnQuantity());
-                row.setUnit(item.get);
-
+            // RETURN 타입만 처리
+            if (!"RETURN".equals(arTx.getTxType())) {
+                continue;
             }
 
+            LedgerRowDto row = new LedgerRowDto();
 
+            // 기본 정보
+            row.setTxDate(arTx.getTxDate());
+            row.setSalesOrderId(arTx.getSalesOrderId());
+            row.setCustomerId(arTx.getCustomerId());
+            row.setTxType("반품");
+
+            // 🔹 반품된 주문의 상품명 조회
+            List<SalesOrderItem> items =
+                    salesOrderItemRepository.findBySalesOrderId(arTx.getSalesOrderId());
+
+            List<String> productNames = new ArrayList<>();
+
+            for (SalesOrderItem item : items) {
+                productRepository.findById(item.getProductId())
+                        .ifPresent(product -> productNames.add(product.getProductName()));
+            }
+
+            // 상품명이 여러 개인 경우 쉼표로 연결
+            if (!productNames.isEmpty()) {
+                row.setProductName(String.join(", ", productNames));
+            } else {
+                row.setProductName("반품");
+            }
+
+            // A방식: 수량 및 단가는 표시하지 않음
+            row.setUnit(null);
+            row.setUnitPrice(null);
+            row.setQuantity(null);
+
+            // 금액 정보 (표시용)
+            row.setSupplyPrice(0);
+            row.setTaxPrice(0);
+            row.setSaleAmount(0);
+            row.setPaymentAmount(0);
+
+            // 미수금 감소 반영
+            row.setArDelta(arTx.getAmount());
+
+            row.setSummaryRow(false);
+            row.setMemo(arTx.getMemo());
+
+            rows.add(row);
         }
 
-        return rows ;
-
+        return rows;
     }
 }
