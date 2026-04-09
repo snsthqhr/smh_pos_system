@@ -1,7 +1,12 @@
 package samosa_fos.de.dto.sales;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
+@Getter
+@Setter
 public class ReturnRequest {
 
 
@@ -15,7 +20,7 @@ public class ReturnRequest {
     private String memo;
 
     //반품 할 수량
-    private int returnQuantity;
+    private Integer returnQuantity;
 
 
 }

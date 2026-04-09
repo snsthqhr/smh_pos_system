@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.dto.sales.ReturnRequest;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
@@ -55,9 +56,16 @@ public class ReturnServiceTest {
 
         SalesOrderItem savedItem = salesOrderItemRepository.save(item);
 
+
+
         //when
 
-        returnService.addReturnQuantity(savedItem.getId(),2);
+        ReturnRequest request = new ReturnRequest();
+        request.setReturnQuantity(2);
+        request.setSalesOrderItemId(item.getId());
+        request.setSalesOrderId(item.getId());
+
+        returnService.addReturnQuantity(request);
 
         //then
 
@@ -91,21 +99,35 @@ public class ReturnServiceTest {
         item.setSalesOrderId(savedOrder.getId());
         item.setQuantity(5);
         item.setUnitPrice(20000);
-        item.setReturnQuantity(1);
+        item.setReturnQuantity(0);
         item.setSupplyPrice(80000);
         item.setTotalPrice(80000);
         item.setActive(true);
 
         SalesOrderItem savedItem = salesOrderItemRepository.save(item);
 
+
+
         //when
-        returnService.addReturnQuantity(savedItem.getId(), 2);
+
+        ReturnRequest request = new ReturnRequest();
+        request.setReturnQuantity(3);
+        request.setSalesOrderId(savedItem.getSalesOrderId());
+        request.setSalesOrderItemId(savedItem.getId());
+        returnService.addReturnQuantity(request);
 
         //then
         SalesOrderItem finditem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
 
         assertThat(finditem.getReturnQuantity()).isEqualTo(3);
-        returnService.addReturnQuantity(savedItem.getId(), 1);
+
+        ReturnRequest request2 = new ReturnRequest();
+        request.setReturnQuantity(1);
+        request.setSalesOrderId(savedItem.getSalesOrderId());
+        request.setSalesOrderItemId(savedItem.getId());
+        returnService.addReturnQuantity(request);
+
+        returnService.addReturnQuantity(request);
         assertThat(finditem.getReturnQuantity()).isEqualTo(4);
     }
 
@@ -127,13 +149,21 @@ public class ReturnServiceTest {
         item.setReturnQuantity(0);
         item.setActive(true);
 
+
         SalesOrderItem savedItem = salesOrderItemRepository.save(item);
 
+
         // when & then
+
+        ReturnRequest request = new ReturnRequest();
+        request.setReturnQuantity(4);
+        request.setSalesOrderId(savedItem.getSalesOrderId());
+        request.setSalesOrderItemId(savedItem.getId());
+        returnService.addReturnQuantity(request);
+
         assertThatThrownBy(() ->
-                returnService.addReturnQuantity(savedItem.getId(), 4)
+                returnService.addReturnQuantity(request)
         ).isInstanceOf(IllegalArgumentException.class);
     }
-
 
 }

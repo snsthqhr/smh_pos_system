@@ -1,19 +1,16 @@
 package samosa_fos.de.service;
 
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import samosa_fos.de.domain.ArTx;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.dto.sales.ReturnRequest;
 import samosa_fos.de.repository.ArTxRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
 import java.time.LocalDate;
-import java.util.List;
-
-import static org.h2.mvstore.DataUtils.newIllegalArgumentException;
 
 @Service
 @Transactional
@@ -31,94 +28,56 @@ public class ReturnService {
         this.arTxRepository = arTxRepository;
     }
 
-    //반품 수량 추가
-    public void addReturnQuantity(Long salesOrderItemId, Integer returnQunatity){
-        //1. 판매 상품 조회
-        SalesOrderItem item = salesOrderItemRepository.findById(salesOrderItemId)
-                .orElseThrow(()-> newIllegalArgumentException("해당 판매 상품이 존재하지 않습니다."));
+    // 반품 수량 추가
+    public void addReturnQuantity(ReturnRequest request) {
 
-        //2. 반품 수량 검증
-        if(returnQunatity == null || returnQunatity <= 0) {
+        // 1. 판매 상품 조회
+        // 기존
+        // SalesOrderItem item = salesOrderItemRepository.findById(request.getSalesOrderId())
+        //         .orElseThrow(() -> newIllegalArgumentException("해당 판매 상품이 존재하지 않습니다."));
+
+        // 변경: SalesOrderItem은 salesOrderId가 아니라 salesOrderItemId로 조회해야 함
+        SalesOrderItem item = salesOrderItemRepository.findById(request.getSalesOrderItemId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 판매 상품이 존재하지 않습니다."));
+
+        // 2. 반품 수량 검증
+        if (request.getReturnQuantity() == null || request.getReturnQuantity() <= 0) {
             throw new IllegalArgumentException("반품 수량은 1개 이상이어야 합니다.");
         }
 
-        int currentQuantity = item.getQuantity();
-        int currentReturnQuantity = item.getReturnQuantity();
+        int currentQuantity = item.getQuantity() == null ? 0 : item.getQuantity();
+        int currentReturnQuantity = item.getReturnQuantity() == null ? 0 : item.getReturnQuantity();
 
-        int newReturnQuantity = currentReturnQuantity + returnQunatity;
+        int newReturnQuantity = currentReturnQuantity + request.getReturnQuantity();
 
-        if(newReturnQuantity > item.getQuantity()) {
+        if (newReturnQuantity > currentQuantity) {
             throw new IllegalArgumentException("반품 수량이 판매 수량보다 많습니다.");
-
         }
 
-        //3. 반품 수량 반영
+        // 3. 반품 수량 반영
         item.setReturnQuantity(newReturnQuantity);
 
-
-        //반품 arTx생성
-        SalesOrder salesOrder = salesOrderRepository.findById(item.getSalesOrderId()).get();
-
-        createReturnArtx(salesOrder,item);
-
-
-
-        /* 기존에는 salesOrder자체의 값을 변동하는 식으로 하려했지만, 이거보다는
-        반품 수량 관리, 기존데이터 유지를 위해서 거래처원장 조회, 미수금 조회 할때만 하려고 생각중이다.
-
-        // 4. 해당 전표 다시 계산
-        Long salesOrderId = item.getSalesOrderId();
-
-        SalesOrder salesOrder = salesOrderRepository.findById(salesOrderId)
+        // 4. 연결된 판매 전표 조회
+        SalesOrder salesOrder = salesOrderRepository.findById(item.getSalesOrderId())
                 .orElseThrow(() -> new IllegalArgumentException("해당 판매 전표가 존재하지 않습니다."));
 
-        List<SalesOrderItem> items = salesOrderItemRepository.findBySalesOrderId(salesOrderId);
-
-        int totalNetAmount = 0;
-        int totalTaxAmount = 0;
-        int totalAmount = 0;
-
-        for (SalesOrderItem orderItem : items) {
-            int quantity = orderItem.getQuantity() == null ? 0 : orderItem.getQuantity();
-            int returned = orderItem.getReturnQuantity() == null ? 0 : orderItem.getReturnQuantity();
-            int remainingQuantity = quantity - returned;
-
-            int unitPrice = orderItem.getUnitPrice() == null ? 0 : orderItem.getUnitPrice();
-
-            int supplyPrice = remainingQuantity * unitPrice;
-            int taxPrice = 0;
-
-            if ("ADD_VAT".equals(salesOrder.getTaxPolicy())) {
-                taxPrice = (int) (supplyPrice * 0.1);
-            }
-
-            int totalPrice = supplyPrice + taxPrice;
-
-            // 반품 후 현재 금액 상태를 item에도 반영
-            orderItem.setSupplyPrice(supplyPrice);
-            orderItem.setTaxPrice(taxPrice);
-            orderItem.setTotalPrice(totalPrice);
-
-            totalNetAmount += supplyPrice;
-            totalTaxAmount += taxPrice;
-            totalAmount += totalPrice;
-        }
-
-        */
-
-
-
+        // 5. 반품 ArTx 생성
+        createReturnArTx(salesOrder, item, request.getReturnQuantity(), request.getMemo());
     }
 
-    //
-    private ArTx createReturnArtx(SalesOrder salesOrder, SalesOrderItem item) {
+    // 반품 ArTx 생성
+    private ArTx createReturnArTx(SalesOrder salesOrder,
+                                  SalesOrderItem item,
+                                  int requestReturnQuantity,
+                                  String memo) {
 
         ArTx returnArTx = new ArTx();
         returnArTx.setTxType("RETURN");
-        returnArTx.setMemo(null);
+        returnArTx.setMemo(memo);
         returnArTx.setActive(true);
         returnArTx.setCustomerId(salesOrder.getCustomerId());
-        returnArTx.setAmount(calculatingAmount(item));
+        returnArTx.setSalesOrderId(salesOrder.getId());
+        returnArTx.setAmount(calculateReturnAmount(item, requestReturnQuantity));
         returnArTx.setTxDate(LocalDate.now());
 
         arTxRepository.save(returnArTx);
@@ -126,15 +85,14 @@ public class ReturnService {
         return returnArTx;
     }
 
-    private int calculatingAmount(SalesOrderItem item){
+    // 이번 반품 요청 수량 기준으로 반품 금액 계산
+    private int calculateReturnAmount(SalesOrderItem item, int requestReturnQuantity) {
 
-        int quantity= item.getQuantity();
-        int returnQuantity= item.getReturnQuantity();
+        // 기존
+        // int returnQuantity = item.getReturnQuantity();
+        // int Amount = -(returnQuantity * item.getUnitPrice());
 
-        int Amount = -((quantity-returnQuantity) * item.getUnitPrice());
-
-        return Amount;
+        // 변경: 누적 반품수량이 아니라 "이번 반품수량" 기준으로 계산해야 함
+        return -(requestReturnQuantity * item.getUnitPrice());
     }
-
-
 }
