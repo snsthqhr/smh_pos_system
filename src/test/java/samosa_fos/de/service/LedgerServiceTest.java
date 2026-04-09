@@ -147,6 +147,84 @@ class LedgerServiceTest {
 
     }
 
+    @Test
+    @DisplayName("서비스 기반: 즉시결제 판매는 원장에 표시되지만 잔액은 안변함")
+    void getLedgerRows_withServices_immediateSaleDoesNotChangeBalance() {
+
+
+        // given
+        Long customerId = 2L;
+
+        Product product = createProduct("P-403", "에나멜 흑색", "통", 28000);
+
+        // 시작 잔액
+        ArTx openingTx = new ArTx();
+        openingTx.setCustomerId(customerId);
+        openingTx.setSalesOrderId(888L);
+        openingTx.setTxDate(LocalDate.of(2026, 4, 1));
+        openingTx.setTxType("SALE");
+        openingTx.setAmount(100000);
+        openingTx.setMemo("전기이월");
+        openingTx.setActive(true);
+        arTxRepository.save(openingTx);
+
+        // 즉시결제 판매 생성
+        CreateSalesOrderItemRequest itemRequest = new CreateSalesOrderItemRequest();
+        itemRequest.setProductId(product.getId());
+        itemRequest.setQuantity(2);
+        itemRequest.setUnitPrice(28000);
+
+        List<CreateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        CreateSalesOrderRequest salesRequest = new CreateSalesOrderRequest();
+        salesRequest.setCustomerId(customerId);
+        salesRequest.setJobSiteId(null);
+        salesRequest.setPaymentType("CASH");
+        salesRequest.setTaxPolicy("NO_TAX");
+        salesRequest.setMemo("즉시결제 판매");
+        salesRequest.setPriceApplyPolicy("ONE_TIME_ONLY");
+        salesRequest.setItems(items);
+
+        salesOrderService.createSalesOrder(salesRequest);
+
+        LedgerSearchRequest ledgerRequest = new LedgerSearchRequest();
+        ledgerRequest.setCustomerId(customerId);
+        ledgerRequest.setStartDate(LocalDate.now());
+        ledgerRequest.setEndDate(LocalDate.now());
+        ledgerRequest.setShowAll(true);
+
+
+        // when
+        List<LedgerRowDto> rows = ledgerService.getLedgerRows(ledgerRequest);
+
+        // then
+        // 품목행 1개 + 오더합계 1개 + 수금행 1개(즉시결제 Payment 표시용)
+
+
+        LedgerRowDto itemRow = rows.get(0);
+        LedgerRowDto summaryRow = rows.get(1);
+        LedgerRowDto paymentRow = rows.get(2);
+
+        assertThat(itemRow.getTxType()).isEqualTo("판매(즉시결제)");
+        assertThat(itemRow.getPaymentAmount()).isEqualTo(56000);
+        assertThat(itemRow.getArDelta()).isEqualTo(0);
+        assertThat(itemRow.getBalance()).isEqualTo(100000);
+
+        assertThat(summaryRow.getTxType()).isEqualTo("오더합계");
+        assertThat(summaryRow.getPaymentAmount()).isEqualTo(56000);
+        assertThat(summaryRow.getArDelta()).isEqualTo(0);
+        assertThat(summaryRow.getBalance()).isEqualTo(100000);
+
+        assertThat(paymentRow.getTxType()).isEqualTo("수금");
+        assertThat(paymentRow.getPaymentAmount()).isEqualTo(56000);
+        assertThat(paymentRow.getArDelta()).isEqualTo(0); // PAYMENT ArTx 없음
+        assertThat(paymentRow.getBalance()).isEqualTo(100000);
+
+    }
+
+
+
 
 
 
@@ -168,5 +246,6 @@ class LedgerServiceTest {
     }
 
 
-    
+
+
 }
