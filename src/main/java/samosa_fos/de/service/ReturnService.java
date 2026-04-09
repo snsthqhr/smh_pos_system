@@ -3,11 +3,14 @@ package samosa_fos.de.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import samosa_fos.de.domain.ArTx;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
+import samosa_fos.de.repository.ArTxRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.h2.mvstore.DataUtils.newIllegalArgumentException;
@@ -18,12 +21,14 @@ public class ReturnService {
 
     private final SalesOrderRepository salesOrderRepository;
     private final SalesOrderItemRepository salesOrderItemRepository;
-    
+    private final ArTxRepository arTxRepository;
 
     public ReturnService(SalesOrderRepository salesOrderRepository,
-                         SalesOrderItemRepository salesOrderItemRepository) {
+                         SalesOrderItemRepository salesOrderItemRepository,
+                         ArTxRepository arTxRepository) {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
+        this.arTxRepository = arTxRepository;
     }
 
     //반품 수량 추가
@@ -51,6 +56,10 @@ public class ReturnService {
         item.setReturnQuantity(newReturnQuantity);
 
 
+        //반품 arTx생성
+        SalesOrder salesOrder = salesOrderRepository.findById(item.getSalesOrderId()).get();
+
+        createReturnArtx(salesOrder,item);
 
 
 
@@ -98,8 +107,34 @@ public class ReturnService {
         */
 
 
+
     }
 
+    //
+    private ArTx createReturnArtx(SalesOrder salesOrder, SalesOrderItem item) {
+
+        ArTx returnArTx = new ArTx();
+        returnArTx.setTxType("RETURN");
+        returnArTx.setMemo(null);
+        returnArTx.setActive(true);
+        returnArTx.setCustomerId(salesOrder.getCustomerId());
+        returnArTx.setAmount(calculatingAmount(item));
+        returnArTx.setTxDate(LocalDate.now());
+
+        arTxRepository.save(returnArTx);
+
+        return returnArTx;
+    }
+
+    private int calculatingAmount(SalesOrderItem item){
+
+        int quantity= item.getQuantity();
+        int returnQuantity= item.getReturnQuantity();
+
+        int Amount = -((quantity-returnQuantity) * item.getUnitPrice());
+
+        return Amount;
+    }
 
 
 }
