@@ -67,7 +67,7 @@ public class LedgerService {
         ledgerRows.addAll(convertPaymentsToLedgerRows(payments, arTxList));
 
         // 6. 반품 행 추가 (추후 고도화)
-        // ledgerRows.addAll(convertReturnsToLedgerRows(request));
+        ledgerRows.addAll(convertReturnsToLedgerRows(arTxList));
 
         // 7. 거래일자 기준 정렬
         ledgerRows.sort(
@@ -385,5 +385,57 @@ public class LedgerService {
             balance += row.getArDelta() == null ? 0 : row.getArDelta();
             row.setBalance(balance);
         }
+    }
+
+    //반품을 한 줄로 바꿔주는 함수
+    private List<LedgerRowDto> convertReturnsToLedgerRows(List<ArTx> arTxList){
+
+
+        List<LedgerRowDto> rows = new ArrayList<>();
+
+
+        for (ArTx arTx : arTxList) {
+
+            // ArTx중에 반품인 것만을 가려내야 한다.
+            if (!"RETURN".equals(arTx.getTxType())){
+                continue;;
+            }//!!!!!!!!!!!!!!!!!! 여기서부터 수정 필요
+
+
+
+            List<SalesOrderItem> items = salesOrderItemRepository.findBySalesOrderId(arTx.getSalesOrderId());
+
+
+            for (SalesOrderItem item : items) {
+                if (item.getReturnQuantity() == null || item.getReturnQuantity() <= 0) {
+                    continue;
+                }
+
+
+                //제품 정보(품명,단위, 반품수량)
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                LedgerRowDto row = new LedgerRowDto();
+
+                if (product != null) {
+                    row.setProductName(product.getProductName());
+                    row.setUnit(product.getUnit());
+                } else {
+                    row.setProductName("상품 조회 불가");
+                    row.setUnit(null);
+                }
+
+
+
+                row.setPaymentAmount(null);
+                row.setQuantity(item.getReturnQuantity());
+                row.setUnit(item.get);
+
+            }
+
+
+        }
+
+        return rows ;
+
     }
 }

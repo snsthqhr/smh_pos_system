@@ -1,23 +1,27 @@
 package samosa_fos.de.service;
 
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import samosa_fos.de.domain.ArTx;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
 import samosa_fos.de.dto.sales.ReturnRequest;
+import samosa_fos.de.repository.ArTxRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
-public class ReturnServiceTest {
+class ReturnServiceTest {
 
     @Autowired
     ReturnService returnService;
@@ -28,142 +32,192 @@ public class ReturnServiceTest {
     @Autowired
     SalesOrderItemRepository salesOrderItemRepository;
 
+    @Autowired
+    ArTxRepository arTxRepository;
+
     @Test
-    @DisplayName("반품 정상 처리 테스트")
-    void returnSuccess() {
-
-        //given
-        SalesOrder order = new SalesOrder();
-        order.setCustomerId(1L);
-        order.setTaxPolicy("NO_TAX");
-        order.setTotalNetAmount(100000);
-        order.setTotalTaxAmount(0);
-        order.setTotalAmount(100000);
-        order.setActive(true);
-
-        SalesOrder savedOrder = salesOrderRepository.save(order);
+    @DisplayName("정상 반품 시 returnQuantity가 증가하고 ArTx RETURN이 생성된다")
+    void addReturnQuantity_success() {
+        // given
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(1L);
+        salesOrder.setJobSiteId(null);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setMemo("외상 판매");
+        salesOrder.setTotalNetAmount(100000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(100000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
 
         SalesOrderItem item = new SalesOrderItem();
         item.setSalesOrderId(savedOrder.getId());
         item.setProductId(10L);
         item.setQuantity(5);
-        item.setUnitPrice(20000);
-        item.setReturnQuantity(0);
-        item.setSupplyPrice(100000);
+        item.setUnitPrice(50000);
+        item.setSupplyPrice(250000);
         item.setTaxPrice(0);
-        item.setTotalPrice(100000);
-        item.setActive(true);
-
-        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
-
-
-
-        //when
-
-        ReturnRequest request = new ReturnRequest();
-        request.setReturnQuantity(2);
-        request.setSalesOrderItemId(item.getId());
-        request.setSalesOrderId(item.getId());
-
-        returnService.addReturnQuantity(request);
-
-        //then
-
-        SalesOrderItem findItem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
-
-        assertThat(findItem.getReturnQuantity()).isEqualTo(2);
-        assertThat(findItem.getSupplyPrice()).isEqualTo(60000); // 3개 남음
-        assertThat(findItem.getTotalPrice()).isEqualTo(60000);
-
-        SalesOrder findOrder = salesOrderRepository.findById(savedOrder.getId()).orElseThrow();
-        assertThat(findOrder.getTotalAmount()).isEqualTo(60000);
-
-
-    }
-
-
-    @Test
-    @DisplayName("반품 누적 테스트")
-    void returnAccumlate() {
-
-        //given
-        SalesOrder order = new SalesOrder();
-        order.setCustomerId(1L);
-        order.setTaxPolicy("NO_TAX");
-        order.setTotalAmount(100000);
-        order.setActive(true);
-
-        SalesOrder savedOrder = salesOrderRepository.save(order);
-
-        SalesOrderItem item = new SalesOrderItem();
-        item.setSalesOrderId(savedOrder.getId());
-        item.setQuantity(5);
-        item.setUnitPrice(20000);
+        item.setTotalPrice(250000);
         item.setReturnQuantity(0);
-        item.setSupplyPrice(80000);
-        item.setTotalPrice(80000);
         item.setActive(true);
-
         SalesOrderItem savedItem = salesOrderItemRepository.save(item);
 
-
-
-        //when
-
         ReturnRequest request = new ReturnRequest();
-        request.setReturnQuantity(3);
-        request.setSalesOrderId(savedItem.getSalesOrderId());
         request.setSalesOrderItemId(savedItem.getId());
+        request.setReturnQuantity(2);
+        request.setMemo("일부 반품");
+
+        // when
         returnService.addReturnQuantity(request);
 
-        //then
-        SalesOrderItem finditem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
+        // then
+        SalesOrderItem findItem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
+        assertThat(findItem.getReturnQuantity()).isEqualTo(2);
 
-        assertThat(finditem.getReturnQuantity()).isEqualTo(3);
+        List<ArTx> arTxList = arTxRepository.findByCustomerId(1L);
+        assertThat(arTxList).hasSize(1);
 
-        ReturnRequest request2 = new ReturnRequest();
-        request.setReturnQuantity(1);
-        request.setSalesOrderId(savedItem.getSalesOrderId());
-        request.setSalesOrderItemId(savedItem.getId());
-        returnService.addReturnQuantity(request);
-
-        returnService.addReturnQuantity(request);
-        assertThat(finditem.getReturnQuantity()).isEqualTo(4);
+        ArTx returnTx = arTxList.get(0);
+        assertThat(returnTx.getTxType()).isEqualTo("RETURN");
+        assertThat(returnTx.getCustomerId()).isEqualTo(1L);
+        assertThat(returnTx.getSalesOrderId()).isEqualTo(savedOrder.getId());
+        assertThat(returnTx.getAmount()).isEqualTo(-100000); // 50000 * 2 * (-1)
+        assertThat(returnTx.getMemo()).isEqualTo("일부 반품");
     }
 
     @Test
-    @DisplayName("반품 수량 초과 예외 테스트")
-    void return_over_exception() {
-
+    @DisplayName("반품 수량이 0 이하이면 예외가 발생한다")
+    void addReturnQuantity_invalidQuantity_throwException() {
         // given
-        SalesOrder order = new SalesOrder();
-        order.setCustomerId(1L);
-        order.setActive(true);
-
-        SalesOrder savedOrder = salesOrderRepository.save(order);
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(1L);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setTotalNetAmount(50000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(50000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
 
         SalesOrderItem item = new SalesOrderItem();
         item.setSalesOrderId(savedOrder.getId());
         item.setProductId(10L);
         item.setQuantity(3);
+        item.setUnitPrice(50000);
+        item.setSupplyPrice(150000);
+        item.setTaxPrice(0);
+        item.setTotalPrice(150000);
         item.setReturnQuantity(0);
         item.setActive(true);
-
-
         SalesOrderItem savedItem = salesOrderItemRepository.save(item);
 
+        ReturnRequest request = new ReturnRequest();
+        request.setSalesOrderItemId(savedItem.getId());
+        request.setReturnQuantity(0);
+        request.setMemo("잘못된 반품");
 
         // when & then
-
-        ReturnRequest request = new ReturnRequest();
-        request.setReturnQuantity(4);
-        request.setSalesOrderId(savedItem.getSalesOrderId());
-        request.setSalesOrderItemId(savedItem.getId());
-        returnService.addReturnQuantity(request);
-
-        assertThatThrownBy(() ->
-                returnService.addReturnQuantity(request)
-        ).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> returnService.addReturnQuantity(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("반품 수량은 1개 이상이어야 합니다.");
     }
 
+    @Test
+    @DisplayName("누적 반품 수량이 판매 수량을 초과하면 예외가 발생한다")
+    void addReturnQuantity_overQuantity_throwException() {
+        // given
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(1L);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setTotalNetAmount(50000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(50000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(10L);
+        item.setQuantity(5);
+        item.setUnitPrice(50000);
+        item.setSupplyPrice(250000);
+        item.setTaxPrice(0);
+        item.setTotalPrice(250000);
+        item.setReturnQuantity(4); // 이미 4개 반품됨
+        item.setActive(true);
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        ReturnRequest request = new ReturnRequest();
+        request.setSalesOrderItemId(savedItem.getId());
+        request.setReturnQuantity(2); // 총 6개가 되어 초과
+        request.setMemo("초과 반품");
+
+        // when & then
+        assertThatThrownBy(() -> returnService.addReturnQuantity(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("반품 수량이 판매 수량보다 많습니다.");
+    }
+
+    @Test
+    @DisplayName("여러 번 반품하면 returnQuantity는 누적되고 ArTx는 요청 단위로 생성된다")
+    void addReturnQuantity_multipleTimes_createsSeparateReturnTx() {
+        // given
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(1L);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setTotalNetAmount(50000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(50000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(10L);
+        item.setQuantity(5);
+        item.setUnitPrice(50000);
+        item.setSupplyPrice(250000);
+        item.setTaxPrice(0);
+        item.setTotalPrice(250000);
+        item.setReturnQuantity(0);
+        item.setActive(true);
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        ReturnRequest firstRequest = new ReturnRequest();
+        firstRequest.setSalesOrderItemId(savedItem.getId());
+        firstRequest.setReturnQuantity(2);
+        firstRequest.setMemo("첫 반품");
+
+        ReturnRequest secondRequest = new ReturnRequest();
+        secondRequest.setSalesOrderItemId(savedItem.getId());
+        secondRequest.setReturnQuantity(1);
+        secondRequest.setMemo("두 번째 반품");
+
+        // when
+        returnService.addReturnQuantity(firstRequest);
+        returnService.addReturnQuantity(secondRequest);
+
+        // then
+        SalesOrderItem findItem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
+        assertThat(findItem.getReturnQuantity()).isEqualTo(3); // 누적
+
+        List<ArTx> arTxList = arTxRepository.findByCustomerId(1L);
+        assertThat(arTxList).hasSize(2);
+
+        ArTx firstTx = arTxList.get(0);
+        ArTx secondTx = arTxList.get(1);
+
+        assertThat(firstTx.getTxType()).isEqualTo("RETURN");
+        assertThat(firstTx.getAmount()).isEqualTo(-100000); // 2개 반품
+
+        assertThat(secondTx.getTxType()).isEqualTo("RETURN");
+        assertThat(secondTx.getAmount()).isEqualTo(-50000); // 1개 반품
+    }
 }
