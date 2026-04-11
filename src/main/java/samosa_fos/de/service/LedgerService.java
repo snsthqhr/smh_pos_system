@@ -407,7 +407,7 @@ public class LedgerService {
             row.setCustomerId(arTx.getCustomerId());
             row.setTxType("반품");
 
-            // 🔹 반품된 주문의 상품명 조회
+            // 반품된 주문의 상품명 조회
             List<SalesOrderItem> items =
                     salesOrderItemRepository.findBySalesOrderId(arTx.getSalesOrderId());
 
@@ -425,7 +425,7 @@ public class LedgerService {
                 row.setProductName("반품");
             }
 
-            // A방식: 수량 및 단가는 표시하지 않음
+            // A방식: 수량 및 단가는 표시하지 않음 추후 리펙토링이 필요하다.
             row.setUnit(null);
             row.setUnitPrice(null);
             row.setQuantity(null);
