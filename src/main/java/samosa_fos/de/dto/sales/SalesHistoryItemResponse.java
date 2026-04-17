@@ -16,4 +16,6 @@ public class SalesHistoryItemResponse {
     private Integer taxPrice;
     private Integer totalPrice;
 
+    private Long salesOrderItemId;
+
 }

@@ -5,6 +5,7 @@ import samosa_fos.de.domain.ArTx;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface ArTxRepository extends JpaRepository<ArTx, Long> {
 
@@ -27,4 +28,6 @@ public interface ArTxRepository extends JpaRepository<ArTx, Long> {
     List<ArTx> findByCustomerIdAndTxType(Long customerId, String txType);
 
     List<ArTx> findByCustomerIdAndTxDateBeforeAndActiveTrue(Long customerId, LocalDate Date);
+
+    Optional<ArTx> findBySalesOrderIdAndTxTypeAndActiveTrue(Long salesOrderId, String txType);
 }

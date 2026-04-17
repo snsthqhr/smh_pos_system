@@ -19,4 +19,6 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
     // 여러 판매 전표의 품목 조회
     List<SalesOrderItem> findBySalesOrderIdIn(List<Long> salesOrderIds);
 
+    boolean existsBySalesOrderIdAndReturnQuantityGreaterThan(Long salesOrderId, int quantity);
+
 }
