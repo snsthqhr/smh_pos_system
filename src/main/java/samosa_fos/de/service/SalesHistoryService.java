@@ -68,7 +68,8 @@ public class SalesHistoryService {
                         item.getReturnQuantity(),
                         item.getSupplyPrice(),
                         item.getTaxPrice(),
-                        item.getTotalPrice()
+                        item.getTotalPrice(),
+                        item.getId()
                 ));
             }
 
