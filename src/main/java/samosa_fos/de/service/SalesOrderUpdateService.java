@@ -2,6 +2,7 @@ package samosa_fos.de.service;
 
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import samosa_fos.de.domain.ArTx;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
 import samosa_fos.de.dto.sales.UpdateSalesOrderItemRequest;
@@ -55,6 +56,10 @@ public class SalesOrderUpdateService {
     }
 
 
+    /**
+     * 수정 가능 여부 검증
+     *
+     */
 
     private void validateUpdatable(Long salesOrderId){
         boolean hasPayment = paymentRepository.
@@ -124,5 +129,13 @@ public class SalesOrderUpdateService {
     }
 
 
+    private void updateArTx(Long salesOrderId, int totalAmount){
+
+        ArTx arTx = arTxRepository
+                .findBySalesOrderIdAndTxTypeAndActiveTrue(salesOrderId,"SALE")
+                .orElseThrow(() -> new IllegalArgumentException("SALE ArTx가 존재하지 않습니다."));
+
+                arTx.setAmount(totalAmount);
+    }
 
 }
