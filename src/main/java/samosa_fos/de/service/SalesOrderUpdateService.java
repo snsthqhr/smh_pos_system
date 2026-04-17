@@ -44,9 +44,14 @@ public class SalesOrderUpdateService {
         validateUpdatable(salesOrder.getId());
         //3. 기존  금액
         int oldTotalAmount = salesOrder.getTotalAmount() == null? 0 : salesOrder.getTotalAmount();
-        //4. 품목 수정 및 금액 재계산
+        //4. 품목 수정 및 금액 재계산,금액 갱신
         int newTotalAmount = updateItems(salesOrder,request.getItems());
 
+        //5.salesOrder 메모 업데이트
+        salesOrder.setMemo(request.getMemo());
+
+        //6.ArTx(SALE)수정
+        updateArTx(salesOrder.getId(),newTotalAmount);
     }
 
 
@@ -91,11 +96,31 @@ public class SalesOrderUpdateService {
             item.setUnitPrice(req.getUnitPrice());
             //공급가액 갱신
             int supplyPrice = req.getQuantity() * req.getUnitPrice();
-            
+
+            int taxPrice = 0;
+            if("ADD_VAT".equals(salesOrder.getTaxPolicy())) {
+                taxPrice = (int) (supplyPrice * 0.1);
+            }
+
+            int totalPrice = supplyPrice + taxPrice;
+
+            item.setSupplyPrice(supplyPrice);
+            item.setTaxPrice(taxPrice);
+            item.setTotalPrice(totalPrice);
+
+            totalNet += supplyPrice;
+            totalTax += taxPrice;
+            totalAmount += totalPrice;
+
 
         }
 
-        return 0;
+        //SalesOrder 전체 금액 갱신 업데이트
+        salesOrder.setTotalNetAmount(totalNet);
+        salesOrder.setTotalTaxAmount(totalTax);
+        salesOrder.setTotalAmount(totalAmount);
+
+        return totalAmount;
     }
 
 
