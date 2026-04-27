@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface SupplierConfigRepository {
+public interface SupplierConfigRepository extends JpaRepository<SupplierConfig, Long> {
 
     Optional<SupplierConfig> findFirstByActiveTrueOrderByIdDesc();
 }
