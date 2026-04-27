@@ -6,12 +6,18 @@ spring:
     driver-class-name: org.h2.Driver
 
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       ddl-auto: create
     properties:
       hibernate:
     # show_sql: true
         format_sql: true
+
+
+  sql:
+    init:
+      mode: always
 
 logging.level:
   org.hibernate.SQL: debug
