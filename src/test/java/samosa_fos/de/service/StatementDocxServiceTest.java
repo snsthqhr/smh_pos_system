@@ -21,7 +21,6 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@Transactional
 class StatementDocxServiceTest {
 
     @Autowired
@@ -106,14 +105,14 @@ class StatementDocxServiceTest {
         SupplierConfig config = new SupplierConfig();
         config.setBusinessNumber("123-45-67890");
         config.setSupplierName("삼화페인트");
-        config.setCeoName("홍길동");
-        config.setAddress("서울시 강남구 테스트로 123");
+        config.setCeoName("신동우");
+        config.setAddress("test_address");
         config.setBusinessType("도소매");
         config.setBusinessItem("페인트");
-        config.setPhone("02-1234-5678");
-        config.setFax("02-1234-9999");
-        config.setBankAccount("기업은행 123-456-7890");
-        config.setAccountHolder("삼화페인트");
+        config.setPhone("010-2539-6373");
+        config.setFax("031-756-8945");
+        config.setBankAccount("우리은행 1002-962-791749");
+        config.setAccountHolder("황경애");
         config.setActive(true);
 
         return supplierConfigRepository.save(config);
