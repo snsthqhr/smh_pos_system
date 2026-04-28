@@ -264,6 +264,7 @@ public class SalesOrderUpdateServiceTest {
         product.setStockQuantity(100);
         Product savedProduct = productRepository.save(product);
 
+
         SalesOrder salesOrder = new SalesOrder();
         salesOrder.setCustomerId(customerId);
         salesOrder.setJobSiteId(null);

@@ -19,14 +19,16 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@Transactional
 public class SalesOrderServiceTest {
 
     @Autowired
     SalesOrderService salesOrderService;
 
+
     @Autowired
     SalesOrderRepository salesOrderRepository;
+
+
     @Autowired
     private SalesOrderItemRepository salesOrderItemRepository;
 

@@ -1,6 +1,7 @@
 package samosa_fos.de.service;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,93 @@ class StatementDocxServiceTest {
 
     @Autowired
     SupplierConfigRepository supplierConfigRepository;
+
+
+
+
+    @Test
+    @DisplayName("품목이 10개 이상인 거래명세표 DOCX 파일을 정상 생성한다")
+    void createStatementDocx_success_withMoreThan10Items() throws Exception {
+        // given
+        createSupplierConfig();
+
+        SalesOrder order = new SalesOrder();
+        order.setCustomerId(1L);
+        order.setJobSiteId(null);
+        order.setPaymentType("CREDIT");
+        order.setSalesDate(LocalDate.of(2026, 4, 27));
+        order.setTaxPolicy("ADD_VAT");
+        order.setMemo("DOCX 10개 이상 품목 테스트");
+        order.setActive(true);
+
+        SalesOrder savedOrder = salesOrderRepository.save(order);
+
+        int totalSupply = 0;
+        int totalTax = 0;
+        int totalAmount = 0;
+
+        for (int i = 1; i <= 12; i++) {
+            Product product = createProduct(
+                    "P-DOCX-" + i,
+                    "테스트 상품 " + i,
+                    "18L",
+                    "말",
+                    10000 * i
+            );
+
+            int quantity = i;
+            int unitPrice = 10000 * i;
+            int supplyPrice = quantity * unitPrice;
+            int taxPrice = (int) (supplyPrice * 0.1);
+            int itemTotalPrice = supplyPrice + taxPrice;
+
+            SalesOrderItem item = new SalesOrderItem();
+            item.setSalesOrderId(savedOrder.getId());
+            item.setProductId(product.getId());
+            item.setQuantity(quantity);
+            item.setUnitPrice(unitPrice);
+            item.setSupplyPrice(supplyPrice);
+            item.setTaxPrice(taxPrice);
+            item.setTotalPrice(itemTotalPrice);
+            item.setReturnQuantity(0);
+            item.setActive(true);
+
+            salesOrderItemRepository.save(item);
+
+            totalSupply += supplyPrice;
+            totalTax += taxPrice;
+            totalAmount += itemTotalPrice;
+        }
+
+        savedOrder.setTotalNetAmount(totalSupply);
+        savedOrder.setTotalTaxAmount(totalTax);
+        savedOrder.setTotalAmount(totalAmount);
+
+        // when
+        byte[] docxBytes = statementDocxService.createStatementDocx(savedOrder.getId());
+
+        // then
+        assertThat(docxBytes).isNotNull();
+        assertThat(docxBytes.length).isGreaterThan(0);
+
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(docxBytes))) {
+
+            String tableText = document.getTables()
+                    .stream()
+                    .flatMap(table -> table.getRows().stream())
+                    .flatMap(row -> row.getTableCells().stream())
+                    .map(XWPFTableCell::getText)
+                    .reduce("", (a, b) -> a + " " + b);
+
+            assertThat(tableText).contains("테스트 상품 1");
+            assertThat(tableText).contains("테스트 상품 10");
+            assertThat(tableText).contains("테스트 상품 12");
+
+            assertThat(tableText).contains("합계");
+
+        }
+    }
+
 
     @Test
     @DisplayName("거래명세표 DOCX 파일을 정상 생성한다")
@@ -137,4 +225,6 @@ class StatementDocxServiceTest {
 
         return productRepository.save(product);
     }
+
+
 }
