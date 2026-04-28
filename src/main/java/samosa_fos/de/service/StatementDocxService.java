@@ -40,12 +40,12 @@ public class StatementDocxService {
             //4. 상단 기본 정보 생성
             createHeaderInfo(document,statement);
             //5. 품목 테이블 생성
-            
-
+            createItemTable(document, statement);
             //6. 하단 기타 정보 생성
-
+            createFooterInfo(document, statement);
             // 7. byte[]로 변환
-
+            document.write(out);
+            return out.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException("거래명세표 DOCX 생성 중 오류가 발생했습니다.", e);
         }
@@ -104,13 +104,80 @@ public class StatementDocxService {
 
 
 
+        );
+    }
+
+    //품목 테이블 생성
+    private void createItemTable(XWPFDocument document, StatementResponse statement) {
+
+
+        XWPFParagraph space = document.createParagraph();
+        space.createRun().setText("");
+
+        int rowCount = statement.getItems().size() + 2;
+        XWPFTable table = document.createTable(rowCount, 7);
+        table.setWidth("100%");
+
+        // 헤더
+        setCellText(table.getRow(0).getCell(0), "No");
+        setCellText(table.getRow(0).getCell(1), "품명");
+        setCellText(table.getRow(0).getCell(2), "규격");
+        setCellText(table.getRow(0).getCell(3), "수량");
+        setCellText(table.getRow(0).getCell(4), "단가");
+        setCellText(table.getRow(0).getCell(5), "공급가액");
+        setCellText(table.getRow(0).getCell(6), "세액");
+
+        int rowIndex = 1;
+
+        for (StatementItemResponse item : statement.getItems()) {
+            XWPFTableRow row = table.getRow(rowIndex++);
+
+            setCellText(row.getCell(0), String.valueOf(item.getNo()));
+            setCellText(row.getCell(1), nullToBlank(item.getProductName()));
+            setCellText(row.getCell(2), nullToBlank(item.getSpec()));
+            setCellText(row.getCell(3), String.valueOf(item.getQuantity()));
+            setCellText(row.getCell(4), formatMoney(item.getUnitPrice()));
+            setCellText(row.getCell(5), formatMoney(item.getSupplyPrice()));
+            setCellText(row.getCell(6), formatMoney(item.getTaxPrice()));
+        }
+
+        // 합계 행
+        XWPFTableRow totalRow = table.getRow(rowIndex);
+        setCellText(totalRow.getCell(0), "합계");
+        setCellText(totalRow.getCell(1), "");
+        setCellText(totalRow.getCell(2), "");
+        setCellText(totalRow.getCell(3), "");
+        setCellText(totalRow.getCell(4), "");
+        setCellText(totalRow.getCell(5), formatMoney(statement.getTotalSupplyPrice()));
+        setCellText(totalRow.getCell(6), formatMoney(statement.getTotalTaxPrice()));
 
     }
 
 
+    /**
+     * 하단 기타 정보 생성
+     */
+    private void createFooterInfo(XWPFDocument document, StatementResponse statement) {
+
+        XWPFParagraph space = document.createParagraph();
+        space.createRun().setText("");
+
+        XWPFTable table = document.createTable(3, 2);
+        table.setWidth("100%");
+
+        setCellText(table.getRow(0).getCell(0), "입금계좌");
+        setCellText(table.getRow(0).getCell(1), nullToBlank(statement.getBankAccount()));
+
+        setCellText(table.getRow(1).getCell(0), "예금주");
+        setCellText(table.getRow(1).getCell(1), nullToBlank(statement.getAccountHolder()));
+
+        setCellText(table.getRow(2).getCell(0), "현재 미수금");
+        setCellText(table.getRow(2).getCell(1), formatMoney(statement.getRemainingArBalance()));
+    }
 
 
 
+    // 셀 텍스트 세팅 공통 메서드
     private void setCellText(XWPFTableCell cell, String text) {
         cell.removeParagraph(0);
 
