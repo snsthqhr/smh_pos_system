@@ -5,9 +5,11 @@ import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import samosa_fos.de.dto.statement.StatementResponse;
+import samosa_fos.de.dto.statement.StatementItemResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.DecimalFormat;
 
 @Service
 @Transactional(readOnly = true)
@@ -38,6 +40,7 @@ public class StatementDocxService {
             //4. 상단 기본 정보 생성
             createHeaderInfo(document,statement);
             //5. 품목 테이블 생성
+            
 
             //6. 하단 기타 정보 생성
 
@@ -71,9 +74,76 @@ public class StatementDocxService {
         XWPFTable table = document.createTable(5,4);
         table.setWidth("100%");
 
+        setCellText(table.getRow(0).getCell(0), "발행일");
+        setCellText(table.getRow(0).getCell(1), String.valueOf(statement.getIssueDate()));
+        setCellText(table.getRow(0).getCell(2), "사업자번호");
+        setCellText(table.getRow(0).getCell(3), nullToBlank(statement.getSupplierBusinessNumber()));
+
+        setCellText(table.getRow(1).getCell(0), "거래처명");
+        setCellText(table.getRow(1).getCell(1), nullToBlank(statement.getCustomerName()));
+        setCellText(table.getRow(1).getCell(2), "상호");
+        setCellText(table.getRow(1).getCell(3), nullToBlank(statement.getSupplierName()));
+
+        setCellText(table.getRow(2).getCell(0), "인수 담당자");
+        setCellText(table.getRow(2).getCell(1), nullToBlank(statement.getReceiverName()));
+        setCellText(table.getRow(2).getCell(2), "대표자");
+        setCellText(table.getRow(2).getCell(3), nullToBlank(statement.getSupplierCeoName()));
+
+        setCellText(table.getRow(3).getCell(0), "합계금액");
+        setCellText(table.getRow(3).getCell(1), formatMoney(statement.getTotalAmount()));
+        setCellText(table.getRow(3).getCell(2), "주소");
+        setCellText(table.getRow(3).getCell(3), nullToBlank(statement.getSupplierAddress()));
+
+        setCellText(table.getRow(4).getCell(0), "비고");
+        setCellText(table.getRow(4).getCell(1), "");
+        setCellText(table.getRow(4).getCell(2), "업태/종목");
+        setCellText(
+                table.getRow(4).getCell(3),
+                nullToBlank(statement.getSupplierBusinessType()) + " / " +
+                        nullToBlank(statement.getSupplierBusinessItem())
 
 
 
+
+    }
+
+
+
+
+
+    private void setCellText(XWPFTableCell cell, String text) {
+        cell.removeParagraph(0);
+
+        XWPFParagraph paragraph = cell.addParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+
+        XWPFRun run = paragraph.createRun();
+        run.setText(text == null ? "" : text);
+        run.setFontSize(10);
+        run.setFontFamily("Malgun Gothic");
+
+
+
+    }
+
+
+    /**
+     * 금액 포맷
+     */
+    private String formatMoney(Integer amount) {
+        if (amount == null) {
+            return "0";
+        }
+
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        return formatter.format(amount);
+    }
+
+    /**
+     * null 문자열 처리
+     */
+    private String nullToBlank(String value) {
+        return value == null ? "" : value;
     }
 
 
