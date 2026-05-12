@@ -1,6 +1,7 @@
 package samosa_fos.de.service;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,8 @@ import samosa_fos.de.domain.Product;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
 import samosa_fos.de.domain.SupplierConfig;
+import samosa_fos.de.dto.sales.CreateSalesOrderItemRequest;
+import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.repository.ProductRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
@@ -18,6 +21,8 @@ import samosa_fos.de.repository.SupplierConfigRepository;
 
 import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,6 +43,9 @@ class StatementDocxServiceTest {
 
     @Autowired
     SupplierConfigRepository supplierConfigRepository;
+
+    @Autowired
+    SalesOrderService salesOrderService;
 
 
 
@@ -122,6 +130,75 @@ class StatementDocxServiceTest {
 
             assertThat(tableText).contains("합계");
 
+        }
+    }
+
+
+    @Test
+    @DisplayName("SalesOrderService로 페인트 판매 등록 후 거래명세표 DOCX를 생성한다")
+    void createStatementDocx_withSalesOrderService_success() throws Exception {
+        // given
+        createSupplierConfig();
+
+        Product urethanePrimer = createProduct("P-U-001", "우레탄 하도", "18L", "말", 50000);
+        Product urethaneMid = createProduct("P-U-002", "우레탄 중도", "18L", "말", 65000);
+        Product urethaneTop = createProduct("P-U-003", "우레탄 상도", "18L", "말", 70000);
+        Product enamel = createProduct("P-E-001", "에나멜", "4L", "통", 30000);
+        Product enamelThinner = createProduct("P-E-002", "에나멜 신나", "17L", "말", 25000);
+        Product brush = createProduct("P-T-001", "붓", "3인치", "개", 3000);
+
+        List<CreateSalesOrderItemRequest> items = new ArrayList<>();
+
+        items.add(createSalesItem(urethanePrimer.getId(), 2, 50000));
+        items.add(createSalesItem(urethaneMid.getId(), 3, 65000));
+        items.add(createSalesItem(urethaneTop.getId(), 2, 70000));
+        items.add(createSalesItem(enamel.getId(), 5, 30000));
+        items.add(createSalesItem(enamelThinner.getId(), 2, 25000));
+        items.add(createSalesItem(brush.getId(), 10, 3000));
+
+        CreateSalesOrderRequest salesRequest = new CreateSalesOrderRequest();
+        salesRequest.setCustomerId(1L);
+        salesRequest.setJobSiteId(null);
+        salesRequest.setPaymentType("CREDIT");
+        salesRequest.setTaxPolicy("ADD_VAT");
+        salesRequest.setMemo("거래명세표 출력 테스트 판매");
+        salesRequest.setPriceApplyPolicy("ONE_TIME_ONLY");
+        salesRequest.setItems(items);
+
+        Long salesOrderId = salesOrderService.createSalesOrder(salesRequest).getId();
+
+        // when
+        byte[] docxBytes = statementDocxService.createStatementDocx(salesOrderId);
+
+        // then
+        assertThat(docxBytes).isNotNull();
+        assertThat(docxBytes.length).isGreaterThan(0);
+
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(docxBytes))) {
+
+            String titleText = document.getParagraphs()
+                    .stream()
+                    .map(XWPFParagraph::getText)
+                    .reduce("", (a, b) -> a + " " + b);
+
+            assertThat(titleText).contains("거 래 명 세 표");
+
+            String tableText = document.getTables()
+                    .stream()
+                    .flatMap(table -> table.getRows().stream())
+                    .flatMap(row -> row.getTableCells().stream())
+                    .map(XWPFTableCell::getText)
+                    .reduce("", (a, b) -> a + " " + b);
+
+            assertThat(tableText).contains("삼화페인트");
+            assertThat(tableText).contains("우레탄 하도");
+            assertThat(tableText).contains("우레탄 중도");
+            assertThat(tableText).contains("우레탄 상도");
+            assertThat(tableText).contains("에나멜");
+            assertThat(tableText).contains("에나멜 신나");
+            assertThat(tableText).contains("붓");
+
+            assertThat(tableText).contains("합계");
         }
     }
 
@@ -224,6 +301,16 @@ class StatementDocxServiceTest {
         product.setStockQuantity(100);
 
         return productRepository.save(product);
+    }
+
+    private CreateSalesOrderItemRequest createSalesItem(Long productId,
+                                                        Integer quantity,
+                                                        Integer unitPrice) {
+        CreateSalesOrderItemRequest item = new CreateSalesOrderItemRequest();
+        item.setProductId(productId);
+        item.setQuantity(quantity);
+        item.setUnitPrice(unitPrice);
+        return item;
     }
 
 
