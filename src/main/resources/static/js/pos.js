@@ -19,8 +19,10 @@
         activeName: "실리콘",
         saleItems: [],
         selectedCustomer: null,
+        selectedJobSite: null,
         searchTimer: null,
-        customerSearchTimer: null
+        customerSearchTimer: null,
+        jobSiteSearchTimer: null
     };
 
     const categoryWrap = document.querySelector("[data-favorite-categories]");
@@ -50,6 +52,12 @@
     const createMessage = document.querySelector("[data-product-create-message]");
     const customerSearchInput = document.querySelector("[data-customer-search-input]");
     const customerResults = document.querySelector("[data-customer-results]");
+    const customerClear = document.querySelector("[data-customer-clear]");
+    const selectedCustomerBadge = document.querySelector("[data-selected-customer-badge]");
+    const jobSiteSearchInput = document.querySelector("[data-jobsite-search-input]");
+    const jobSiteResults = document.querySelector("[data-jobsite-results]");
+    const jobSiteClear = document.querySelector("[data-jobsite-clear]");
+    const selectedJobSiteBadge = document.querySelector("[data-selected-jobsite-badge]");
     const taxPolicy = document.querySelector("[data-tax-policy]");
     const pricePolicy = document.querySelector("[data-price-policy]");
     const saleMemo = document.querySelector("[data-sale-memo]");
@@ -58,6 +66,7 @@
     const summaryQuantity = document.querySelector("[data-summary-quantity]");
     const summaryTotal = document.querySelector("[data-summary-total]");
     const summaryDiscount = document.querySelector("[data-summary-discount]");
+    const clearSaleButton = document.querySelector("[data-clear-sale]");
 
     function loadGroups() {
         const saved = localStorage.getItem(storageKey);
@@ -254,18 +263,23 @@
             const amount = Number(item.salePrice || 0) * Number(item.quantity || 1);
             const row = document.createElement("div");
             row.className = "sale-line";
+            row.dataset.productId = item.id;
             row.innerHTML = `
                 <span title="${item.productName}">${item.productName}</span>
                 <span></span>
                 <span>${item.unit || item.variant || ""}</span>
                 <span class="number">${money(item.salePrice)}</span>
-                <span class="number">${item.quantity}</span>
+                <div class="qty-control">
+                    <button type="button" data-qty-minus="${item.id}">-</button>
+                    <strong>${item.quantity}</strong>
+                    <button type="button" data-qty-plus="${item.id}">+</button>
+                </div>
                 <span class="number">${money(amount)}</span>
                 <span class="number">0</span>
                 <span class="number">0</span>
                 <span></span>
                 <span></span>
-                <span>${item.code || ""}</span>
+                <button type="button" class="line-remove-button" data-remove-item="${item.id}">삭제</button>
             `;
             saleLines.appendChild(row);
         });
@@ -293,6 +307,32 @@
         } else {
             state.saleItems.push({ ...product, quantity: 1 });
         }
+        renderSaleLines();
+    }
+
+    function changeQuantity(productId, delta) {
+        const item = state.saleItems.find((saleItem) => Number(saleItem.id) === Number(productId));
+        if (!item) {
+            return;
+        }
+
+        item.quantity += delta;
+        if (item.quantity <= 0) {
+            removeSaleItem(productId);
+            return;
+        }
+        renderSaleLines();
+    }
+
+    function removeSaleItem(productId) {
+        state.saleItems = state.saleItems.filter((item) => Number(item.id) !== Number(productId));
+        renderSaleLines();
+    }
+
+    function clearSaleItems() {
+        state.saleItems = [];
+        saleSaveMessage.textContent = "";
+        saleSaveMessage.className = "sale-save-message";
         renderSaleLines();
     }
 
@@ -324,24 +364,152 @@
 
     function selectCustomer(customer) {
         state.selectedCustomer = customer;
+        clearJobSite();
         customerSearchInput.value = customer.name;
+        customerClear.hidden = false;
+        selectedCustomerBadge.hidden = false;
+        selectedCustomerBadge.textContent = `선택된 고객: ${customer.name}`;
         customerResults.hidden = true;
         customerResults.innerHTML = "";
     }
 
-    function renderCustomerResults(customers, keyword) {
+    function clearCustomer() {
+        state.selectedCustomer = null;
+        clearJobSite();
+        customerSearchInput.value = "";
+        customerClear.hidden = true;
+        selectedCustomerBadge.hidden = true;
+        selectedCustomerBadge.textContent = "";
+        customerResults.hidden = true;
         customerResults.innerHTML = "";
+    }
 
-        customers.forEach((customer) => {
+    async function searchJobSites(keyword) {
+        if (!state.selectedCustomer) {
+            throw new Error("고객을 먼저 선택하세요.");
+        }
+
+        const params = new URLSearchParams();
+        params.set("customerId", state.selectedCustomer.id);
+        if (keyword) {
+            params.set("keyword", keyword);
+        }
+
+        const response = await fetch(`/api/job-sites?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error("현장 검색에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    async function createJobSite(name) {
+        if (!state.selectedCustomer) {
+            throw new Error("고객을 먼저 선택하세요.");
+        }
+
+        const response = await fetch("/api/job-sites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                customerId: state.selectedCustomer.id,
+                name
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("현장 등록에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    function selectJobSite(jobSite) {
+        state.selectedJobSite = jobSite;
+        jobSiteSearchInput.value = jobSite.name;
+        jobSiteClear.hidden = false;
+        selectedJobSiteBadge.hidden = false;
+        selectedJobSiteBadge.textContent = `선택된 현장: ${jobSite.name}`;
+        jobSiteResults.hidden = true;
+        jobSiteResults.innerHTML = "";
+    }
+
+    function clearJobSite() {
+        state.selectedJobSite = null;
+        if (!jobSiteSearchInput) {
+            return;
+        }
+        jobSiteSearchInput.value = "";
+        jobSiteClear.hidden = true;
+        selectedJobSiteBadge.hidden = true;
+        selectedJobSiteBadge.textContent = "";
+        jobSiteResults.hidden = true;
+        jobSiteResults.innerHTML = "";
+    }
+
+    function renderJobSiteResults(jobSites, keyword) {
+        jobSiteResults.innerHTML = "";
+        const hasExactMatch = jobSites.some((jobSite) => normalizeName(jobSite.name) === normalizeName(keyword));
+
+        jobSites.forEach((jobSite) => {
             const row = document.createElement("button");
             row.type = "button";
             row.className = "customer-result-row";
-            row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || ""}</small>`;
+            row.innerHTML = `<span>${jobSite.name}</span><small>기존 현장</small>`;
+            row.addEventListener("click", () => selectJobSite(jobSite));
+            jobSiteResults.appendChild(row);
+        });
+
+        if (keyword && !hasExactMatch) {
+            const createRow = document.createElement("button");
+            createRow.type = "button";
+            createRow.className = "customer-result-row";
+            createRow.innerHTML = `<span>신규 현장으로 등록: ${keyword}</span><small>Enter</small>`;
+            createRow.addEventListener("click", async () => {
+                const jobSite = await createJobSite(keyword);
+                selectJobSite(jobSite);
+            });
+            jobSiteResults.appendChild(createRow);
+        }
+
+        jobSiteResults.hidden = false;
+    }
+
+    function handleJobSiteSearchInput() {
+        const keyword = jobSiteSearchInput.value.trim();
+        state.selectedJobSite = null;
+        clearTimeout(state.jobSiteSearchTimer);
+
+        if (!state.selectedCustomer) {
+            jobSiteResults.innerHTML = `<button type="button" class="customer-result-row"><span>고객을 먼저 선택하세요.</span></button>`;
+            jobSiteResults.hidden = false;
+            return;
+        }
+
+        state.jobSiteSearchTimer = setTimeout(async () => {
+            try {
+                const jobSites = await searchJobSites(keyword);
+                renderJobSiteResults(jobSites, keyword);
+            } catch (error) {
+                jobSiteResults.innerHTML = `<button type="button" class="customer-result-row"><span>${error.message}</span></button>`;
+                jobSiteResults.hidden = false;
+            }
+        }, 180);
+    }
+
+    function renderCustomerResults(customers, keyword) {
+        customerResults.innerHTML = "";
+        const uniqueCustomers = uniqueCustomersByName(customers);
+        const hasExactMatch = uniqueCustomers.some((customer) => normalizeName(customer.name) === normalizeName(keyword));
+
+        uniqueCustomers.forEach((customer) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "customer-result-row";
+            row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || "기존 고객"}</small>`;
             row.addEventListener("click", () => selectCustomer(customer));
             customerResults.appendChild(row);
         });
 
-        if (keyword) {
+        if (keyword && !hasExactMatch) {
             const createRow = document.createElement("button");
             createRow.type = "button";
             createRow.className = "customer-result-row";
@@ -388,9 +556,33 @@
             throw new Error("고객명을 입력하거나 선택하세요.");
         }
 
+        const customers = await searchCustomers(name);
+        const exactCustomer = uniqueCustomersByName(customers)
+                .find((customer) => normalizeName(customer.name) === normalizeName(name));
+        if (exactCustomer) {
+            selectCustomer(exactCustomer);
+            return exactCustomer;
+        }
+
         const customer = await createCustomer(name);
         selectCustomer(customer);
         return customer;
+    }
+
+    function uniqueCustomersByName(customers) {
+        const seen = new Set();
+        return customers.filter((customer) => {
+            const key = normalizeName(customer.name);
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function normalizeName(value) {
+        return String(value || "").trim().replace(/\s+/g, "");
     }
 
     async function saveSale(paymentType) {
@@ -406,7 +598,7 @@
             const customer = await ensureCustomer();
             const payload = {
                 customerId: customer.id,
-                jobSiteId: null,
+                jobSiteId: state.selectedJobSite ? state.selectedJobSite.id : null,
                 paymentType,
                 taxPolicy: taxPolicy.value,
                 memo: saleMemo.value.trim(),
@@ -621,6 +813,22 @@
     });
 
     productSearchInput.addEventListener("input", handleProductSearchInput);
+    saleLines.addEventListener("click", (event) => {
+        const minusId = event.target.dataset.qtyMinus;
+        const plusId = event.target.dataset.qtyPlus;
+        const removeId = event.target.dataset.removeItem;
+
+        if (minusId) {
+            changeQuantity(minusId, -1);
+        }
+        if (plusId) {
+            changeQuantity(plusId, 1);
+        }
+        if (removeId) {
+            removeSaleItem(removeId);
+        }
+    });
+    clearSaleButton.addEventListener("click", clearSaleItems);
     customerSearchInput.addEventListener("input", handleCustomerSearchInput);
     customerSearchInput.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
@@ -632,9 +840,25 @@
             }
         }
     });
+    customerClear.addEventListener("click", clearCustomer);
+    jobSiteSearchInput.addEventListener("input", handleJobSiteSearchInput);
+    jobSiteSearchInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            const keyword = jobSiteSearchInput.value.trim();
+            if (keyword && !state.selectedJobSite) {
+                const jobSite = await createJobSite(keyword);
+                selectJobSite(jobSite);
+            }
+        }
+    });
+    jobSiteClear.addEventListener("click", clearJobSite);
     document.addEventListener("click", (event) => {
         if (!customerResults.contains(event.target) && event.target !== customerSearchInput) {
             customerResults.hidden = true;
+        }
+        if (!jobSiteResults.contains(event.target) && event.target !== jobSiteSearchInput) {
+            jobSiteResults.hidden = true;
         }
     });
 

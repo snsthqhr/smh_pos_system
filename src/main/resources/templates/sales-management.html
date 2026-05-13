@@ -32,47 +32,51 @@
             <h1>판매내역 관리</h1>
         </div>
         <div class="header-actions">
-            <button type="button">신규</button>
-            <button type="button">저장</button>
-            <button type="button">DOCX 거래명세표</button>
+            <button type="button" data-open-pos>신규</button>
+            <button type="button" data-save-selected disabled>저장</button>
+            <button type="button" data-download-statement disabled>DOCX 거래명세표</button>
         </div>
     </header>
 
     <section class="search-band" aria-label="판매내역 검색">
         <label>
             판매일자
-            <input type="date" value="2026-05-01">
+            <input type="date" data-start-date>
         </label>
         <span class="date-divider">~</span>
         <label>
             종료일
-            <input type="date" value="2026-05-12">
+            <input type="date" data-end-date>
         </label>
         <label>
             품번/명
-            <input type="search">
+            <input type="search" data-product-keyword>
         </label>
-        <label>
+        <label class="management-customer-search">
             고객명
-            <input type="search">
+            <input type="search" data-management-customer-search autocomplete="off">
+            <button type="button" class="customer-clear" data-management-customer-clear hidden>해제</button>
+            <div class="customer-results management-customer-results" data-management-customer-results hidden></div>
         </label>
         <label>
             판매구분
-            <select>
-                <option>전체</option>
-                <option>외상</option>
-                <option>카드</option>
-                <option>현금</option>
+            <select data-payment-type>
+                <option value="">전체</option>
+                <option value="CREDIT">외상</option>
+                <option value="CARD">카드</option>
+                <option value="CASH">현금</option>
             </select>
         </label>
         <label>
             부가세구분
-            <select>
-                <option>전체</option>
-                <option>부가세 별도</option>
-                <option>면세</option>
+            <select data-tax-policy>
+                <option value="">전체</option>
+                <option value="ADD_VAT">부가세 별도</option>
+                <option value="NO_TAX">면세/부가세 없음</option>
             </select>
         </label>
+        <button type="button" data-search-sales>조회</button>
+        <p class="management-message" data-management-message></p>
     </section>
 
     <section class="history-table" aria-label="판매내역 목록">
@@ -90,58 +94,64 @@
             <span>등록/수정일시</span>
             <span>결제구분</span>
         </div>
-        <div class="empty-table-state">조회 조건을 입력하고 판매내역을 불러오세요.</div>
+        <div class="management-history-rows" data-sales-history-rows>
+            <div class="empty-table-state">조회 조건을 입력하고 판매내역을 불러오세요.</div>
+        </div>
     </section>
 
     <section class="edit-panel" aria-label="판매 상세 수정">
         <div class="form-grid">
             <label>
                 판매일자
-                <input type="date">
+                <input type="date" data-detail-sales-date readonly>
             </label>
             <label class="wide">
                 고객명
-                <input type="search">
+                <input type="search" data-detail-customer-name readonly>
+            </label>
+            <label>
+                현장
+                <input data-detail-jobsite-name readonly>
             </label>
             <label>
                 합계금액
-                <input readonly>
+                <input data-detail-total-amount readonly>
             </label>
             <label>
                 결제대상금액
-                <input readonly>
+                <input data-detail-payable-amount readonly>
             </label>
             <label>
                 매출할인
-                <input>
+                <input value="0" readonly>
             </label>
             <label>
                 공급가
-                <input readonly>
+                <input data-detail-net-amount readonly>
             </label>
             <label>
                 부가세
-                <input readonly>
+                <input data-detail-tax-amount readonly>
             </label>
             <label>
                 현금
-                <input>
+                <input data-detail-cash readonly>
             </label>
             <label>
                 통장입금
-                <input>
+                <input data-detail-transfer readonly>
             </label>
             <label>
                 카드
-                <input>
+                <input data-detail-card readonly>
             </label>
             <label>
                 미수금
-                <input readonly>
+                <input data-detail-credit readonly>
             </label>
             <label class="wide">
                 메모
-                <input>
+                <input data-detail-memo>
             </label>
         </div>
         <div class="document-options">
@@ -166,8 +176,11 @@
             <span>칼라</span>
             <span>조색금액</span>
         </div>
-        <div class="empty-table-state">판매 품목이 선택되면 이곳에서 수정합니다.</div>
+        <div class="management-item-rows" data-sales-item-rows>
+            <div class="empty-table-state">판매 품목이 선택되면 이곳에서 수정합니다.</div>
+        </div>
     </section>
 </main>
+<script src="/js/sales-management.js"></script>
 </body>
 </html>

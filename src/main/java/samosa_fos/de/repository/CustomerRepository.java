@@ -12,6 +12,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     // POS에서 고객 검색할 때 사용
     List<Customer> findByNameContaining(String name);
 
+    Optional<Customer> findFirstByNameAndActiveTrue(String name);
+
     // 전화번호로 고객 조회
     // 동일 번호 고객 확인 또는 빠른 조회
     Optional<Customer> findByPhone(String phone);

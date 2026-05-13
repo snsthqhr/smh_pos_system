@@ -9,6 +9,8 @@ import samosa_fos.de.dto.customer.CustomerResponse;
 import samosa_fos.de.repository.CustomerRepository;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -27,21 +29,27 @@ public class CustomerController {
                 ? customerRepository.findByActiveTrue()
                 : customerRepository.findByNameContaining(normalizedKeyword);
 
-        return customers.stream()
-                .limit(20)
+        return dedupeByName(customers).stream()
+                .limit(12)
                 .map(CustomerResponse::new)
                 .toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CustomerResponse createCustomer(@RequestBody CreateCustomerRequest request) {
+    public synchronized CustomerResponse createCustomer(@RequestBody CreateCustomerRequest request) {
         if (request == null || normalize(request.getName()).isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "고객명은 필수입니다.");
         }
 
+        String name = normalize(request.getName());
+        Customer existingCustomer = customerRepository.findFirstByNameAndActiveTrue(name).orElse(null);
+        if (existingCustomer != null) {
+            return new CustomerResponse(existingCustomer);
+        }
+
         Customer customer = new Customer();
-        customer.setName(normalize(request.getName()));
+        customer.setName(name);
         customer.setPhone(normalizeNullable(request.getPhone()));
         customer.setAddress(normalizeNullable(request.getAddress()));
         customer.setMemo(normalizeNullable(request.getMemo()));
@@ -57,5 +65,17 @@ public class CustomerController {
     private String normalizeNullable(String value) {
         String normalized = normalize(value);
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private List<Customer> dedupeByName(List<Customer> customers) {
+        Map<String, Customer> deduped = new LinkedHashMap<>();
+        for (Customer customer : customers) {
+            if (Boolean.FALSE.equals(customer.getActive())) {
+                continue;
+            }
+            String key = normalize(customer.getName());
+            deduped.putIfAbsent(key, customer);
+        }
+        return deduped.values().stream().toList();
     }
 }

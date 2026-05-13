@@ -31,15 +31,20 @@
                 고객명
                 <input type="search" placeholder="거래처명 검색" data-customer-search-input>
             </label>
+            <button type="button" class="customer-clear" data-customer-clear hidden>선택해제</button>
             <label>
                 현장
-                <input type="search" placeholder="현장 선택">
+                <input type="search" placeholder="현장 선택" data-jobsite-search-input>
             </label>
+            <button type="button" class="customer-clear" data-jobsite-clear hidden>현장해제</button>
             <label>
                 미수금
                 <input class="money-input" value="0" readonly>
             </label>
             <div class="customer-results" data-customer-results hidden></div>
+            <div class="customer-results jobsite-results" data-jobsite-results hidden></div>
+            <div class="selected-customer-badge" data-selected-customer-badge hidden></div>
+            <div class="selected-customer-badge selected-jobsite-badge" data-selected-jobsite-badge hidden></div>
         </div>
 
         <div class="sale-option-strip">
@@ -76,7 +81,7 @@
                 <span>할인액</span>
                 <span>조색</span>
                 <span>메모</span>
-                <span>거래내역</span>
+                <span>삭제</span>
             </div>
             <div class="sale-lines" data-sale-lines hidden></div>
             <div class="empty-sale-state" data-empty-sale-state>
@@ -121,7 +126,7 @@
             </div>
             <div class="cancel-stack">
                 <button type="button">선택취소</button>
-                <button type="button">전체취소</button>
+                <button type="button" data-clear-sale>전체취소</button>
             </div>
         </div>
     </section>

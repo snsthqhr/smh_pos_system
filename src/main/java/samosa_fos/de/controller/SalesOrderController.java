@@ -6,16 +6,21 @@ import org.springframework.web.server.ResponseStatusException;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderResponse;
+import samosa_fos.de.dto.sales.UpdateSalesOrderRequest;
 import samosa_fos.de.service.SalesOrderService;
+import samosa_fos.de.service.SalesOrderUpdateService;
 
 @RestController
 @RequestMapping("/api/sales-orders")
 public class SalesOrderController {
 
     private final SalesOrderService salesOrderService;
+    private final SalesOrderUpdateService salesOrderUpdateService;
 
-    public SalesOrderController(SalesOrderService salesOrderService) {
+    public SalesOrderController(SalesOrderService salesOrderService,
+                                SalesOrderUpdateService salesOrderUpdateService) {
         this.salesOrderService = salesOrderService;
+        this.salesOrderUpdateService = salesOrderUpdateService;
     }
 
     @PostMapping
@@ -24,6 +29,16 @@ public class SalesOrderController {
         validate(request);
         SalesOrder salesOrder = salesOrderService.createSalesOrder(request);
         return new CreateSalesOrderResponse(salesOrder);
+    }
+
+    @PutMapping("/{salesOrderId}")
+    public void updateSalesOrder(@PathVariable Long salesOrderId,
+                                 @RequestBody UpdateSalesOrderRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "판매 수정 정보가 필요합니다.");
+        }
+        request.setSalesOrderId(salesOrderId);
+        salesOrderUpdateService.updateSalesOrder(request);
     }
 
     private void validate(CreateSalesOrderRequest request) {

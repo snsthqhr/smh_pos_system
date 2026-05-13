@@ -13,6 +13,7 @@ import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -79,11 +80,25 @@ public class SalesOrderUpdateService {
 
     private int updateItems (SalesOrder salesOrder, List<UpdateSalesOrderItemRequest> itemRequests){
 
+        if (itemRequests == null || itemRequests.isEmpty()) {
+            throw new IllegalArgumentException("판매 품목은 1개 이상 필요합니다.");
+        }
+
         int totalNet = 0;
         int totalTax = 0;
         int totalAmount = 0;
+        Set<Long> keptItemIds = new java.util.HashSet<>();
 
         for(UpdateSalesOrderItemRequest req : itemRequests) {
+            if (req.getProductId() == null) {
+                throw new IllegalArgumentException("상품은 필수입니다.");
+            }
+            if (req.getQuantity() == null || req.getQuantity() <= 0) {
+                throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
+            }
+            if (req.getUnitPrice() == null || req.getUnitPrice() < 0) {
+                throw new IllegalArgumentException("단가는 0 이상이어야 합니다.");
+            }
 
             SalesOrderItem item;
 
@@ -91,10 +106,15 @@ public class SalesOrderUpdateService {
             if (req.getSalesOrderItemId() != null) {
                 item = salesOrderItemRepository.findById(req.getSalesOrderItemId())
                         .orElseThrow(() -> new IllegalArgumentException("품목이 존재하지 않습니다."));
+                if (!salesOrder.getId().equals(item.getSalesOrderId())) {
+                    throw new IllegalArgumentException("해당 전표의 품목이 아닙니다.");
+                }
             }else {
                 // 신규 품목 추가 전에 없던 품목이 추가 된경우
                 item = new SalesOrderItem();
                 item.setSalesOrderId(salesOrder.getId());
+                item.setReturnQuantity(0);
+                item.setActive(true);
             }
             item.setProductId(req.getProductId());
             item.setQuantity(req.getQuantity());
@@ -117,8 +137,15 @@ public class SalesOrderUpdateService {
             totalTax += taxPrice;
             totalAmount += totalPrice;
 
-
+            SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+            keptItemIds.add(savedItem.getId());
         }
+
+        salesOrderItemRepository.findBySalesOrderId(salesOrder.getId()).stream()
+                .filter(item -> Boolean.TRUE.equals(item.getActive()))
+                .filter(item -> item.getId() != null)
+                .filter(item -> !keptItemIds.contains(item.getId()))
+                .forEach(item -> item.setActive(false));
 
         //SalesOrder 전체 금액 갱신 업데이트
         salesOrder.setTotalNetAmount(totalNet);
