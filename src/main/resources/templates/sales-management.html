@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>삼화페인트 판매관리</title>
+    <link rel="stylesheet" href="/css/app-ui.css">
+</head>
+<body class="app-shell management-screen">
+<aside class="management-nav">
+    <div class="brand-mark vertical">
+        <strong>SP SAMHWA</strong>
+        <span>판매관리</span>
+    </div>
+    <nav aria-label="관리 메뉴">
+        <a class="is-active" href="/sales-management">판매내역 관리</a>
+        <a href="#">거래처 미수현황</a>
+        <a href="#">거래처 매출현황</a>
+        <a href="#">거래처 매출원장</a>
+        <a href="#">거래명세표 출력</a>
+        <a href="#">미수금 관리</a>
+        <a href="#">고객 관리</a>
+        <a href="#">상품 관리</a>
+        <a href="/pos">POS 판매 화면</a>
+    </nav>
+</aside>
+
+<main class="management-layout">
+    <header class="management-header">
+        <div>
+            <p>BAB01. 판매 등록</p>
+            <h1>판매내역 관리</h1>
+        </div>
+        <div class="header-actions">
+            <button type="button">신규</button>
+            <button type="button">저장</button>
+            <button type="button">DOCX 거래명세표</button>
+        </div>
+    </header>
+
+    <section class="search-band" aria-label="판매내역 검색">
+        <label>
+            판매일자
+            <input type="date" value="2026-05-01">
+        </label>
+        <span class="date-divider">~</span>
+        <label>
+            종료일
+            <input type="date" value="2026-05-12">
+        </label>
+        <label>
+            품번/명
+            <input type="search">
+        </label>
+        <label>
+            고객명
+            <input type="search">
+        </label>
+        <label>
+            판매구분
+            <select>
+                <option>전체</option>
+                <option>외상</option>
+                <option>카드</option>
+                <option>현금</option>
+            </select>
+        </label>
+        <label>
+            부가세구분
+            <select>
+                <option>전체</option>
+                <option>부가세 별도</option>
+                <option>면세</option>
+            </select>
+        </label>
+    </section>
+
+    <section class="history-table" aria-label="판매내역 목록">
+        <div class="table-header">
+            <span>지점구분</span>
+            <span>판매일자</span>
+            <span>포스번호</span>
+            <span>순번</span>
+            <span>판매구분</span>
+            <span>고객코드</span>
+            <span>고객명</span>
+            <span>대표품명</span>
+            <span>수량</span>
+            <span>판매금액</span>
+            <span>등록/수정일시</span>
+            <span>결제구분</span>
+        </div>
+        <div class="empty-table-state">조회 조건을 입력하고 판매내역을 불러오세요.</div>
+    </section>
+
+    <section class="edit-panel" aria-label="판매 상세 수정">
+        <div class="form-grid">
+            <label>
+                판매일자
+                <input type="date">
+            </label>
+            <label class="wide">
+                고객명
+                <input type="search">
+            </label>
+            <label>
+                합계금액
+                <input readonly>
+            </label>
+            <label>
+                결제대상금액
+                <input readonly>
+            </label>
+            <label>
+                매출할인
+                <input>
+            </label>
+            <label>
+                공급가
+                <input readonly>
+            </label>
+            <label>
+                부가세
+                <input readonly>
+            </label>
+            <label>
+                현금
+                <input>
+            </label>
+            <label>
+                통장입금
+                <input>
+            </label>
+            <label>
+                카드
+                <input>
+            </label>
+            <label>
+                미수금
+                <input readonly>
+            </label>
+            <label class="wide">
+                메모
+                <input>
+            </label>
+        </div>
+        <div class="document-options">
+            <label><input type="checkbox"> 명세서 단가 미출력</label>
+            <label><input type="checkbox"> 명세서 합계 미출력</label>
+            <label><input type="checkbox"> 미수금 미출력</label>
+            <label><input type="checkbox"> 공급받는자만 출력</label>
+        </div>
+    </section>
+
+    <section class="line-item-table" aria-label="판매 품목">
+        <div class="table-header">
+            <span>품번</span>
+            <span>품명</span>
+            <span>단위</span>
+            <span>입고단가</span>
+            <span>판매수량</span>
+            <span>판매단가</span>
+            <span>판매금액</span>
+            <span>할인율</span>
+            <span>할인금액</span>
+            <span>칼라</span>
+            <span>조색금액</span>
+        </div>
+        <div class="empty-table-state">판매 품목이 선택되면 이곳에서 수정합니다.</div>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>삼화페인트 POS</title>
+    <link rel="stylesheet" href="/css/app-ui.css">
+</head>
+<body class="app-shell pos-screen">
+<header class="top-bar">
+    <div class="brand-mark">
+        <strong>SP SAMHWA</strong>
+        <span>판매 POS</span>
+    </div>
+    <div class="store-meta">
+        <span>매장명 : 성남 태명상사</span>
+        <span>영업일자 : 2026-05-12</span>
+        <span>POS NO : 1</span>
+    </div>
+    <nav class="top-actions" aria-label="상단 메뉴">
+        <a href="/sales-management">판매관리</a>
+        <button type="button">공지사항</button>
+        <button type="button">원격지원</button>
+    </nav>
+</header>
+
+<main class="pos-layout">
+    <section class="sale-workspace" aria-label="판매 입력">
+        <div class="customer-strip">
+            <label>
+                고객명
+                <input type="search" placeholder="거래처명 검색">
+            </label>
+            <label>
+                현장
+                <input type="search" placeholder="현장 선택">
+            </label>
+            <label>
+                미수금
+                <input class="money-input" value="0" readonly>
+            </label>
+        </div>
+
+        <div class="sale-grid">
+            <div class="grid-header">
+                <span>품명</span>
+                <span>칼라</span>
+                <span>단위</span>
+                <span>단가</span>
+                <span>수량</span>
+                <span>판매금액</span>
+                <span>할인율</span>
+                <span>할인액</span>
+                <span>조색</span>
+                <span>메모</span>
+                <span>거래내역</span>
+            </div>
+            <div class="empty-sale-state">
+                <p>상품을 검색하거나 오른쪽 즐겨찾기에서 품목을 선택하세요.</p>
+            </div>
+        </div>
+
+        <div class="sale-summary">
+            <div>
+                <span>총건수</span>
+                <strong>0</strong>
+            </div>
+            <div>
+                <span>총수량</span>
+                <strong>0</strong>
+            </div>
+            <div>
+                <span>합계금액</span>
+                <strong>0</strong>
+            </div>
+            <div>
+                <span>할인금액</span>
+                <strong>0</strong>
+            </div>
+        </div>
+
+        <div class="product-search-panel">
+            <label>
+                상품코드
+                <input type="search" placeholder="코드 또는 품명 입력">
+            </label>
+            <div class="product-preview-grid">
+                <span>세트명</span>
+                <span>단위</span>
+                <span>세트단가</span>
+                <span>순번</span>
+                <span>구성품명</span>
+                <span>적용단가</span>
+            </div>
+            <div class="cancel-stack">
+                <button type="button">선택취소</button>
+                <button type="button">전체취소</button>
+            </div>
+        </div>
+    </section>
+
+    <aside class="quick-panel" aria-label="즐겨찾기 상품">
+        <div class="favorite-categories">
+            <button type="button">에나멜</button>
+            <button type="button">수성</button>
+            <button type="button">우레탄</button>
+            <button type="button">로라</button>
+            <button type="button" class="is-active">실리콘</button>
+            <button type="button">신나</button>
+            <button type="button">붓</button>
+            <button type="button">기타</button>
+        </div>
+
+        <div class="favorite-items">
+            <button type="button">우레탄실리콘</button>
+            <button type="button">유성실리콘</button>
+            <button type="button">일반수성실리콘</button>
+            <button type="button">탄성코킹실리콘</button>
+            <button type="button">실리콘 총</button>
+            <button type="button">실리콘충</button>
+            <button type="button"></button>
+            <button type="button"></button>
+            <button type="button"></button>
+            <button type="button"></button>
+            <button type="button"></button>
+            <button type="button"></button>
+        </div>
+
+        <div class="page-control">
+            <button type="button">PRE</button>
+            <strong>PAGE 1</strong>
+            <button type="button">NEXT</button>
+        </div>
+
+        <div class="pos-command-grid">
+            <button type="button" class="primary">결제(카드)<small>F1</small></button>
+            <button type="button" class="primary">결제(현금)<small>F2</small></button>
+            <button type="button" class="primary">외상판매<small>F3</small></button>
+            <button type="button" class="dark">닫기</button>
+            <button type="button">보류(일반)</button>
+            <button type="button">보류(적송)</button>
+            <button type="button">반품(상품)</button>
+            <button type="button">결제취소</button>
+            <button type="button">상품조회<small>F5</small></button>
+            <button type="button">상품등록</button>
+            <button type="button">재고조회</button>
+            <button type="button">고객관리</button>
+            <button type="button">영수증재출력<small>F6</small></button>
+            <button type="button">조색정보 출력</button>
+            <button type="button">미수금관리</button>
+            <button type="button">통합조색비 문의/전송</button>
+            <button type="button">거래명세표</button>
+            <button type="button">견적서</button>
+            <button type="button">즐겨찾기 등록</button>
+            <button type="button">판매관리 바로가기</button>
+        </div>
+    </aside>
+</main>
+</body>
+</html>
