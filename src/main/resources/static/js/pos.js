@@ -18,7 +18,9 @@
         groups: loadGroups(),
         activeName: "실리콘",
         saleItems: [],
-        searchTimer: null
+        selectedCustomer: null,
+        searchTimer: null,
+        customerSearchTimer: null
     };
 
     const categoryWrap = document.querySelector("[data-favorite-categories]");
@@ -46,6 +48,16 @@
     const createModal = document.querySelector("[data-product-create-modal]");
     const createForm = document.querySelector("[data-product-create-form]");
     const createMessage = document.querySelector("[data-product-create-message]");
+    const customerSearchInput = document.querySelector("[data-customer-search-input]");
+    const customerResults = document.querySelector("[data-customer-results]");
+    const taxPolicy = document.querySelector("[data-tax-policy]");
+    const pricePolicy = document.querySelector("[data-price-policy]");
+    const saleMemo = document.querySelector("[data-sale-memo]");
+    const saleSaveMessage = document.querySelector("[data-sale-save-message]");
+    const summaryCount = document.querySelector("[data-summary-count]");
+    const summaryQuantity = document.querySelector("[data-summary-quantity]");
+    const summaryTotal = document.querySelector("[data-summary-total]");
+    const summaryDiscount = document.querySelector("[data-summary-discount]");
 
     function loadGroups() {
         const saved = localStorage.getItem(storageKey);
@@ -231,6 +243,7 @@
         if (!state.saleItems.length) {
             saleLines.hidden = true;
             emptySaleState.hidden = false;
+            renderSummary();
             return;
         }
 
@@ -256,11 +269,175 @@
             `;
             saleLines.appendChild(row);
         });
+
+        renderSummary();
+    }
+
+    function renderSummary() {
+        const totalQuantity = state.saleItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        const totalAmount = state.saleItems.reduce(
+                (sum, item) => sum + Number(item.salePrice || 0) * Number(item.quantity || 0),
+                0
+        );
+
+        summaryCount.textContent = money(state.saleItems.length);
+        summaryQuantity.textContent = money(totalQuantity);
+        summaryTotal.textContent = money(totalAmount);
+        summaryDiscount.textContent = "0";
     }
 
     function addSaleItem(product) {
-        state.saleItems.push({ ...product, quantity: 1 });
+        const existing = state.saleItems.find((item) => item.id === product.id);
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            state.saleItems.push({ ...product, quantity: 1 });
+        }
         renderSaleLines();
+    }
+
+    async function searchCustomers(keyword) {
+        const params = new URLSearchParams();
+        if (keyword) {
+            params.set("keyword", keyword);
+        }
+
+        const response = await fetch(`/api/customers?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error("고객 검색에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    async function createCustomer(name) {
+        const response = await fetch("/api/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            throw new Error("고객 등록에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    function selectCustomer(customer) {
+        state.selectedCustomer = customer;
+        customerSearchInput.value = customer.name;
+        customerResults.hidden = true;
+        customerResults.innerHTML = "";
+    }
+
+    function renderCustomerResults(customers, keyword) {
+        customerResults.innerHTML = "";
+
+        customers.forEach((customer) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "customer-result-row";
+            row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || ""}</small>`;
+            row.addEventListener("click", () => selectCustomer(customer));
+            customerResults.appendChild(row);
+        });
+
+        if (keyword) {
+            const createRow = document.createElement("button");
+            createRow.type = "button";
+            createRow.className = "customer-result-row";
+            createRow.innerHTML = `<span>신규 고객으로 등록: ${keyword}</span><small>Enter</small>`;
+            createRow.addEventListener("click", async () => {
+                const customer = await createCustomer(keyword);
+                selectCustomer(customer);
+            });
+            customerResults.appendChild(createRow);
+        }
+
+        customerResults.hidden = false;
+    }
+
+    function handleCustomerSearchInput() {
+        const keyword = customerSearchInput.value.trim();
+        state.selectedCustomer = null;
+        clearTimeout(state.customerSearchTimer);
+
+        if (!keyword) {
+            customerResults.hidden = true;
+            customerResults.innerHTML = "";
+            return;
+        }
+
+        state.customerSearchTimer = setTimeout(async () => {
+            try {
+                const customers = await searchCustomers(keyword);
+                renderCustomerResults(customers, keyword);
+            } catch (error) {
+                customerResults.innerHTML = `<button type="button" class="customer-result-row"><span>${error.message}</span></button>`;
+                customerResults.hidden = false;
+            }
+        }, 180);
+    }
+
+    async function ensureCustomer() {
+        if (state.selectedCustomer) {
+            return state.selectedCustomer;
+        }
+
+        const name = customerSearchInput.value.trim();
+        if (!name) {
+            throw new Error("고객명을 입력하거나 선택하세요.");
+        }
+
+        const customer = await createCustomer(name);
+        selectCustomer(customer);
+        return customer;
+    }
+
+    async function saveSale(paymentType) {
+        saleSaveMessage.textContent = "";
+        saleSaveMessage.className = "sale-save-message";
+
+        if (!state.saleItems.length) {
+            saleSaveMessage.textContent = "판매 품목을 먼저 선택하세요.";
+            return;
+        }
+
+        try {
+            const customer = await ensureCustomer();
+            const payload = {
+                customerId: customer.id,
+                jobSiteId: null,
+                paymentType,
+                taxPolicy: taxPolicy.value,
+                memo: saleMemo.value.trim(),
+                priceApplyPolicy: pricePolicy.value,
+                items: state.saleItems.map((item) => ({
+                    productId: item.id,
+                    quantity: item.quantity,
+                    unitPrice: Number(item.salePrice || 0)
+                }))
+            };
+
+            const response = await fetch("/api/sales-orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || "판매 저장에 실패했습니다.");
+            }
+
+            const saved = await response.json();
+            saleSaveMessage.textContent = `판매 저장 완료: 전표 ${saved.salesOrderId}, 합계 ${money(saved.totalAmount)}원`;
+            saleSaveMessage.className = "sale-save-message success";
+            state.saleItems = [];
+            saleMemo.value = "";
+            renderSaleLines();
+        } catch (error) {
+            saleSaveMessage.textContent = error.message;
+        }
     }
 
     async function handleProductSearchInput() {
@@ -337,7 +514,7 @@
         createForm.reset();
         createForm.elements.category.value = state.activeName || "기타";
         createModal.hidden = false;
-        createForm.elements.code.focus();
+        createForm.elements.productName.focus();
     }
 
     function closeCreateModal() {
@@ -444,6 +621,23 @@
     });
 
     productSearchInput.addEventListener("input", handleProductSearchInput);
+    customerSearchInput.addEventListener("input", handleCustomerSearchInput);
+    customerSearchInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            const keyword = customerSearchInput.value.trim();
+            if (keyword && !state.selectedCustomer) {
+                const customer = await createCustomer(keyword);
+                selectCustomer(customer);
+            }
+        }
+    });
+    document.addEventListener("click", (event) => {
+        if (!customerResults.contains(event.target) && event.target !== customerSearchInput) {
+            customerResults.hidden = true;
+        }
+    });
+
     pickerSearchButton.addEventListener("click", () => renderPickerResults(pickerSearchInput.value.trim(), state.activeName));
     pickerSearchInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -470,6 +664,9 @@
         }
     });
     createForm.addEventListener("submit", createProduct);
+    document.querySelectorAll("[data-save-sale]").forEach((button) => {
+        button.addEventListener("click", () => saveSale(button.dataset.saveSale));
+    });
 
     renderFavorites();
     renderSaleLines();

@@ -29,7 +29,7 @@
         <div class="customer-strip">
             <label>
                 고객명
-                <input type="search" placeholder="거래처명 검색">
+                <input type="search" placeholder="거래처명 검색" data-customer-search-input>
             </label>
             <label>
                 현장
@@ -39,6 +39,29 @@
                 미수금
                 <input class="money-input" value="0" readonly>
             </label>
+            <div class="customer-results" data-customer-results hidden></div>
+        </div>
+
+        <div class="sale-option-strip">
+            <label>
+                세금
+                <select data-tax-policy>
+                    <option value="ADD_VAT">부가세 별도</option>
+                    <option value="NO_TAX">면세/부가세 없음</option>
+                </select>
+            </label>
+            <label>
+                가격반영
+                <select data-price-policy>
+                    <option value="SAVE_PRICE">고객/현장가 저장</option>
+                    <option value="ONE_TIME_ONLY">이번만 적용</option>
+                </select>
+            </label>
+            <label class="memo-control">
+                메모
+                <input data-sale-memo placeholder="판매 메모">
+            </label>
+            <p class="sale-save-message" data-sale-save-message></p>
         </div>
 
         <div class="sale-grid">
@@ -64,19 +87,19 @@
         <div class="sale-summary">
             <div>
                 <span>총건수</span>
-                <strong>0</strong>
+                <strong data-summary-count>0</strong>
             </div>
             <div>
                 <span>총수량</span>
-                <strong>0</strong>
+                <strong data-summary-quantity>0</strong>
             </div>
             <div>
                 <span>합계금액</span>
-                <strong>0</strong>
+                <strong data-summary-total>0</strong>
             </div>
             <div>
                 <span>할인금액</span>
-                <strong>0</strong>
+                <strong data-summary-discount>0</strong>
             </div>
         </div>
 
@@ -127,9 +150,9 @@
         </div>
 
         <div class="pos-command-grid">
-            <button type="button" class="primary">결제(카드)<small>F1</small></button>
-            <button type="button" class="primary">결제(현금)<small>F2</small></button>
-            <button type="button" class="primary">외상판매<small>F3</small></button>
+            <button type="button" class="primary" data-save-sale="CARD">결제(카드)<small>F1</small></button>
+            <button type="button" class="primary" data-save-sale="CASH">결제(현금)<small>F2</small></button>
+            <button type="button" class="primary" data-save-sale="CREDIT">외상판매<small>F3</small></button>
             <button type="button" class="dark">닫기</button>
             <button type="button">보류(일반)</button>
             <button type="button">보류(적송)</button>
@@ -232,7 +255,7 @@
             <div class="create-form-grid">
                 <label>
                     상품코드
-                    <input name="code" required placeholder="예: 7000001">
+                    <input name="code" placeholder="비워두면 자동 생성">
                 </label>
                 <label class="wide">
                     품명

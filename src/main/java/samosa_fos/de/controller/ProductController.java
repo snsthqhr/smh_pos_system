@@ -10,6 +10,7 @@ import samosa_fos.de.repository.ProductRepository;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/api/products")
@@ -54,6 +55,9 @@ public class ProductController {
         validateCreateRequest(request);
 
         String code = normalize(request.getCode());
+        if (code.isBlank()) {
+            code = generateProductCode();
+        }
         productRepository.findByCode(code).ifPresent(product -> {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 상품코드입니다.");
         });
@@ -77,9 +81,6 @@ public class ProductController {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품 정보가 필요합니다.");
         }
-        if (normalize(request.getCode()).isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품코드는 필수입니다.");
-        }
         if (normalize(request.getProductName()).isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "품명은 필수입니다.");
         }
@@ -101,6 +102,17 @@ public class ProductController {
 
     private Integer defaultNumber(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private String generateProductCode() {
+        String code;
+        do {
+            long millis = System.currentTimeMillis();
+            int suffix = ThreadLocalRandom.current().nextInt(100, 1000);
+            code = "P" + millis + suffix;
+        } while (productRepository.findByCode(code).isPresent());
+
+        return code;
     }
 
     private int searchScore(Product product, String keyword, String category) {
