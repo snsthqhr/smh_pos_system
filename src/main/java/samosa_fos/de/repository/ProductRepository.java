@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import samosa_fos.de.domain.Product;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Long> {
 
@@ -18,4 +19,14 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
 
     //브랜드로 조회
     List<Product> findByBrand(String brand);
+
+    Optional<Product> findByCode(String code);
+
+    List<Product> findTop30ByCodeContainingIgnoreCaseOrProductNameContainingIgnoreCaseOrProductNicknameContainingIgnoreCase(
+            String code,
+            String productName,
+            String productNickname
+    );
+
+    List<Product> findTop30ByCategoryAndProductNameContainingIgnoreCase(String category, String productName);
 }

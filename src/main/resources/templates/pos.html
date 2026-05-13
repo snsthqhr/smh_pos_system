@@ -55,7 +55,8 @@
                 <span>메모</span>
                 <span>거래내역</span>
             </div>
-            <div class="empty-sale-state">
+            <div class="sale-lines" data-sale-lines hidden></div>
+            <div class="empty-sale-state" data-empty-sale-state>
                 <p>상품을 검색하거나 오른쪽 즐겨찾기에서 품목을 선택하세요.</p>
             </div>
         </div>
@@ -82,15 +83,18 @@
         <div class="product-search-panel">
             <label>
                 상품코드
-                <input type="search" placeholder="코드 또는 품명 입력">
+                <input type="search" placeholder="코드 또는 품명 입력" data-product-search-input>
             </label>
-            <div class="product-preview-grid">
-                <span>세트명</span>
-                <span>단위</span>
-                <span>세트단가</span>
-                <span>순번</span>
-                <span>구성품명</span>
-                <span>적용단가</span>
+            <div class="product-result-grid" data-product-results>
+                <div class="product-result-header">
+                    <span>품번</span>
+                    <span>품명</span>
+                    <span>규격</span>
+                    <span>단위</span>
+                    <span>재고</span>
+                    <span>판매단가</span>
+                </div>
+                <div class="product-result-empty">상품코드나 품명을 입력하면 검색됩니다.</div>
             </div>
             <div class="cancel-stack">
                 <button type="button">선택취소</button>
@@ -100,31 +104,21 @@
     </section>
 
     <aside class="quick-panel" aria-label="즐겨찾기 상품">
-        <div class="favorite-categories">
-            <button type="button">에나멜</button>
-            <button type="button">수성</button>
-            <button type="button">우레탄</button>
-            <button type="button">로라</button>
-            <button type="button" class="is-active">실리콘</button>
-            <button type="button">신나</button>
-            <button type="button">붓</button>
-            <button type="button">기타</button>
-        </div>
+        <section class="favorite-section category-section" aria-label="즐겨찾기 카테고리">
+            <div class="favorite-section-head">
+                <h2>카테고리</h2>
+                <span>8개</span>
+            </div>
+            <div class="favorite-categories" data-favorite-categories></div>
+        </section>
 
-        <div class="favorite-items">
-            <button type="button">우레탄실리콘</button>
-            <button type="button">유성실리콘</button>
-            <button type="button">일반수성실리콘</button>
-            <button type="button">탄성코킹실리콘</button>
-            <button type="button">실리콘 총</button>
-            <button type="button">실리콘충</button>
-            <button type="button"></button>
-            <button type="button"></button>
-            <button type="button"></button>
-            <button type="button"></button>
-            <button type="button"></button>
-            <button type="button"></button>
-        </div>
+        <section class="favorite-section item-section" aria-label="선택 카테고리 품목">
+            <div class="favorite-section-head">
+                <h2><span data-active-category-name>실리콘</span> 품목</h2>
+                <span data-active-item-count>6개</span>
+            </div>
+            <div class="favorite-items" data-favorite-items></div>
+        </section>
 
         <div class="page-control">
             <button type="button">PRE</button>
@@ -142,7 +136,7 @@
             <button type="button">반품(상품)</button>
             <button type="button">결제취소</button>
             <button type="button">상품조회<small>F5</small></button>
-            <button type="button">상품등록</button>
+            <button type="button" data-product-create-open>상품등록</button>
             <button type="button">재고조회</button>
             <button type="button">고객관리</button>
             <button type="button">영수증재출력<small>F6</small></button>
@@ -151,10 +145,149 @@
             <button type="button">통합조색비 문의/전송</button>
             <button type="button">거래명세표</button>
             <button type="button">견적서</button>
-            <button type="button">즐겨찾기 등록</button>
+            <button type="button" data-favorite-register>즐겨찾기 등록</button>
             <button type="button">판매관리 바로가기</button>
         </div>
     </aside>
 </main>
+
+<div class="modal-backdrop" data-favorite-modal hidden>
+    <section class="favorite-modal" role="dialog" aria-modal="true" aria-labelledby="favoriteModalTitle">
+        <header class="modal-header">
+            <div>
+                <p>즐겨찾기 관리</p>
+                <h2 id="favoriteModalTitle">카테고리 / 품목 등록</h2>
+            </div>
+            <button type="button" class="icon-close" aria-label="닫기" data-favorite-close>×</button>
+        </header>
+
+        <div class="modal-body">
+            <section class="modal-panel">
+                <h3>카테고리</h3>
+                <div class="modal-list" data-modal-category-list></div>
+                <form class="modal-form" data-category-form>
+                    <label>
+                        카테고리명
+                        <input name="categoryName" placeholder="예: 방수재">
+                    </label>
+                    <button type="submit">추가</button>
+                </form>
+            </section>
+
+            <section class="modal-panel">
+                <h3><span data-modal-selected-category>실리콘</span> 품목</h3>
+                <div class="modal-list item-list" data-modal-item-list></div>
+                <form class="modal-form" data-item-form>
+                    <label>
+                        품목명
+                        <input name="itemName" placeholder="예: 바이오 실리콘">
+                    </label>
+                    <button type="submit">추가</button>
+                </form>
+            </section>
+        </div>
+
+        <footer class="modal-footer">
+            <button type="button" data-favorite-reset>기본값 복원</button>
+            <button type="button" class="primary-action" data-favorite-close>완료</button>
+        </footer>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-product-picker-modal hidden>
+    <section class="favorite-modal product-picker-modal" role="dialog" aria-modal="true" aria-labelledby="productPickerTitle">
+        <header class="modal-header">
+            <div>
+                <p>즐겨찾기 품목 매칭</p>
+                <h2 id="productPickerTitle"><span data-picker-alias>품목</span> 실제 상품 선택</h2>
+            </div>
+            <button type="button" class="icon-close" aria-label="닫기" data-product-picker-close>×</button>
+        </header>
+        <div class="picker-body">
+            <div class="picker-search-row">
+                <label>
+                    검색어
+                    <input data-picker-search-input>
+                </label>
+                <button type="button" data-picker-search-button>검색</button>
+            </div>
+            <div class="picker-results" data-picker-results></div>
+        </div>
+        <footer class="modal-footer">
+            <button type="button" data-product-picker-close>닫기</button>
+        </footer>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-product-create-modal hidden>
+    <section class="favorite-modal product-create-modal" role="dialog" aria-modal="true" aria-labelledby="productCreateTitle">
+        <header class="modal-header">
+            <div>
+                <p>상품 관리</p>
+                <h2 id="productCreateTitle">상품 등록</h2>
+            </div>
+            <button type="button" class="icon-close" aria-label="닫기" data-product-create-close>×</button>
+        </header>
+        <form class="product-create-form" data-product-create-form>
+            <div class="create-form-grid">
+                <label>
+                    상품코드
+                    <input name="code" required placeholder="예: 7000001">
+                </label>
+                <label class="wide">
+                    품명
+                    <input name="productName" required placeholder="예: 아이생각 수성 외부 프로 백색">
+                </label>
+                <label class="wide">
+                    별칭
+                    <input name="productNickname" placeholder="검색용 별칭">
+                </label>
+                <label>
+                    규격
+                    <input name="variant" placeholder="18L">
+                </label>
+                <label>
+                    단위
+                    <input name="unit" placeholder="말">
+                </label>
+                <label>
+                    브랜드
+                    <input name="brand" placeholder="삼화">
+                </label>
+                <label>
+                    카테고리
+                    <select name="category">
+                        <option>기타</option>
+                        <option>에나멜</option>
+                        <option>수성</option>
+                        <option>우레탄</option>
+                        <option>로라</option>
+                        <option>실리콘</option>
+                        <option>신나</option>
+                        <option>붓</option>
+                    </select>
+                </label>
+                <label>
+                    입고단가
+                    <input name="costPrice" type="number" min="0" value="0">
+                </label>
+                <label>
+                    판매단가
+                    <input name="salePrice" type="number" min="0" value="0">
+                </label>
+                <label>
+                    재고
+                    <input name="stockQuantity" type="number" min="0" value="0">
+                </label>
+            </div>
+            <p class="form-message" data-product-create-message></p>
+            <footer class="modal-footer">
+                <button type="button" data-product-create-close>취소</button>
+                <button type="submit" class="primary-action">등록</button>
+            </footer>
+        </form>
+    </section>
+</div>
+<script src="/js/pos.js"></script>
 </body>
 </html>
