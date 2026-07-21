@@ -97,6 +97,15 @@
         customerResults.innerHTML = "";
     }
 
+    function selectedCustomerIdForSearch() {
+        if (!customerInput.value.trim()) {
+            state.selectedCustomer = null;
+            customerClear.hidden = true;
+            return null;
+        }
+        return state.selectedCustomer ? state.selectedCustomer.id : null;
+    }
+
     function uniqueCustomersByName(customers) {
         const seen = new Set();
         return customers.filter((customer) => {
@@ -157,8 +166,9 @@
         historyRows.innerHTML = `<div class="empty-table-state">판매내역을 불러오는 중입니다.</div>`;
 
         const params = new URLSearchParams();
-        if (state.selectedCustomer) {
-            params.set("customerId", state.selectedCustomer.id);
+        const customerId = selectedCustomerIdForSearch();
+        if (customerId) {
+            params.set("customerId", customerId);
         }
         if (startDateInput.value) {
             params.set("startDate", startDateInput.value);

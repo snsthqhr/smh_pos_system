@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>삼화페인트 미수금 관리</title>
+    <link rel="stylesheet" href="/css/app-ui.css">
+</head>
+<body class="app-shell management-screen">
+<aside class="management-nav">
+    <div class="brand-mark vertical">
+        <strong>SP SAMHWA</strong>
+        <span>미수금 관리</span>
+    </div>
+    <nav aria-label="관리 메뉴">
+        <a href="/sales-management">판매내역 관리</a>
+        <a href="/ar-management">거래처 미수현황</a>
+        <a href="#">거래처 매출현황</a>
+        <a href="#">거래처 매출원장</a>
+        <a href="#">거래명세표 출력</a>
+        <a class="is-active" href="/ar-management">미수금 관리</a>
+        <a href="#">고객 관리</a>
+        <a href="#">상품 관리</a>
+        <a href="/pos">POS 판매 화면</a>
+    </nav>
+</aside>
+
+<main class="management-layout ar-layout">
+    <header class="management-header">
+        <div>
+            <p>AR01. 미수금 / 수금 관리</p>
+            <h1>미수금 관리</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/sales-management">판매내역</a>
+            <a href="/pos">POS 판매</a>
+        </div>
+    </header>
+
+    <section class="ar-customer-band" aria-label="고객 미수금 조회">
+        <label class="management-customer-search">
+            고객명
+            <input type="search" data-ar-customer-search autocomplete="off">
+            <button type="button" class="customer-clear" data-ar-customer-clear hidden>해제</button>
+            <div class="customer-results management-customer-results" data-ar-customer-results hidden></div>
+        </label>
+        <label>
+            시작일
+            <input type="date" data-ar-start-date>
+        </label>
+        <label>
+            종료일
+            <input type="date" data-ar-end-date>
+        </label>
+        <button type="button" data-search-ar>조회</button>
+        <div class="ar-balance-card">
+            <span>현재 미수금</span>
+            <strong data-ar-current-balance>0</strong>
+        </div>
+        <p class="management-message" data-ar-message></p>
+    </section>
+
+    <section class="ar-summary-band" aria-label="미수 흐름 요약">
+        <div>
+            <span>기간 외상 증가</span>
+            <strong data-ar-summary-increase>0</strong>
+        </div>
+        <div>
+            <span>기간 수금</span>
+            <strong data-ar-summary-payment>0</strong>
+        </div>
+        <div>
+            <span>기간 반품/차감</span>
+            <strong data-ar-summary-return>0</strong>
+        </div>
+        <div>
+            <span>조회 후 잔액</span>
+            <strong data-ar-summary-balance>0</strong>
+        </div>
+    </section>
+
+    <section class="payment-panel ar-payment-panel" aria-label="수금 등록">
+        <div class="payment-panel-title">
+            <strong>수금 등록</strong>
+            <span data-payment-customer-label>고객을 선택하세요.</span>
+        </div>
+        <label>
+            연결전표
+            <input data-payment-sales-order readonly>
+        </label>
+        <label>
+            수금액
+            <input type="number" min="1" data-payment-amount>
+        </label>
+        <label>
+            수금방식
+            <select data-payment-method>
+                <option value="CASH">현금</option>
+                <option value="CARD">카드</option>
+                <option value="TRANSFER">통장입금</option>
+            </select>
+        </label>
+        <label class="wide">
+            메모
+            <input data-payment-memo placeholder="수금 메모">
+        </label>
+        <button type="button" data-clear-sales-order disabled>전표해제</button>
+        <button type="button" data-register-payment disabled>수금 저장</button>
+        <p class="management-message" data-payment-message></p>
+    </section>
+
+    <section class="history-table ar-sales-table" aria-label="외상 판매전표">
+        <div class="table-header">
+            <span>판매일자</span>
+            <span>전표번호</span>
+            <span>고객명</span>
+            <span>대표품명</span>
+            <span>수량</span>
+            <span>판매금액</span>
+            <span>상태</span>
+        </div>
+        <div class="ar-sales-rows" data-ar-sales-rows>
+            <div class="empty-table-state">고객을 선택하면 외상 전표가 표시됩니다.</div>
+        </div>
+    </section>
+
+    <section class="history-table ar-ledger-table" aria-label="미수 상세 내역">
+        <div class="table-header">
+            <span>일자</span>
+            <span>구분</span>
+            <span>전표</span>
+            <span>고객명</span>
+            <span>내용</span>
+            <span>증가</span>
+            <span>감소</span>
+            <span>잔액</span>
+            <span>메모</span>
+        </div>
+        <div class="ar-ledger-rows" data-ar-ledger-rows>
+            <div class="empty-table-state">미수 흐름 내역이 이곳에 표시됩니다.</div>
+        </div>
+    </section>
+</main>
+<script src="/js/ar-management.js"></script>
+</body>
+</html>

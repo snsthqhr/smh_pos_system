@@ -15,4 +15,9 @@ public class PageController {
     public String salesManagement() {
         return "sales-management";
     }
+
+    @GetMapping("/ar-management")
+    public String arManagement() {
+        return "ar-management";
+    }
 }

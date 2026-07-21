@@ -67,6 +67,7 @@
     const summaryTotal = document.querySelector("[data-summary-total]");
     const summaryDiscount = document.querySelector("[data-summary-discount]");
     const clearSaleButton = document.querySelector("[data-clear-sale]");
+    const arBalanceInput = document.querySelector("[data-ar-balance-input]");
 
     function loadGroups() {
         const saved = localStorage.getItem(storageKey);
@@ -362,6 +363,33 @@
         return response.json();
     }
 
+    async function fetchArBalance(customerId) {
+        if (!customerId) {
+            return 0;
+        }
+
+        const response = await fetch(`/api/customers/${customerId}/ar-balance`);
+        if (!response.ok) {
+            throw new Error("미수금 조회에 실패했습니다.");
+        }
+
+        const data = await response.json();
+        return Number(data.currentArBalance || 0);
+    }
+
+    async function refreshArBalance(customerId) {
+        if (!arBalanceInput) {
+            return;
+        }
+
+        try {
+            const balance = await fetchArBalance(customerId);
+            arBalanceInput.value = money(balance);
+        } catch (error) {
+            arBalanceInput.value = "조회 실패";
+        }
+    }
+
     function selectCustomer(customer) {
         state.selectedCustomer = customer;
         clearJobSite();
@@ -371,6 +399,7 @@
         selectedCustomerBadge.textContent = `선택된 고객: ${customer.name}`;
         customerResults.hidden = true;
         customerResults.innerHTML = "";
+        refreshArBalance(customer.id);
     }
 
     function clearCustomer() {
@@ -382,6 +411,9 @@
         selectedCustomerBadge.textContent = "";
         customerResults.hidden = true;
         customerResults.innerHTML = "";
+        if (arBalanceInput) {
+            arBalanceInput.value = "0";
+        }
     }
 
     async function searchJobSites(keyword) {
@@ -627,6 +659,7 @@
             state.saleItems = [];
             saleMemo.value = "";
             renderSaleLines();
+            await refreshArBalance(customer.id);
         } catch (error) {
             saleSaveMessage.textContent = error.message;
         }
@@ -890,6 +923,9 @@
     createForm.addEventListener("submit", createProduct);
     document.querySelectorAll("[data-save-sale]").forEach((button) => {
         button.addEventListener("click", () => saveSale(button.dataset.saveSale));
+    });
+    document.querySelector("[data-open-ar-management]").addEventListener("click", () => {
+        window.location.href = "/ar-management";
     });
 
     renderFavorites();
