@@ -13,7 +13,6 @@ import samosa_fos.de.dto.sales.SalesManagementItemResponse;
 import samosa_fos.de.dto.sales.SalesManagementResponse;
 import samosa_fos.de.repository.CustomerRepository;
 import samosa_fos.de.repository.JobSiteRepository;
-import samosa_fos.de.repository.PaymentRepository;
 import samosa_fos.de.repository.ProductRepository;
 import samosa_fos.de.repository.SalesOrderItemRepository;
 import samosa_fos.de.repository.SalesOrderRepository;
@@ -31,20 +30,17 @@ public class SalesManagementController {
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final JobSiteRepository jobSiteRepository;
-    private final PaymentRepository paymentRepository;
 
     public SalesManagementController(SalesOrderRepository salesOrderRepository,
                                      SalesOrderItemRepository salesOrderItemRepository,
                                      ProductRepository productRepository,
                                      CustomerRepository customerRepository,
-                                     JobSiteRepository jobSiteRepository,
-                                     PaymentRepository paymentRepository) {
+                                     JobSiteRepository jobSiteRepository) {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
         this.jobSiteRepository = jobSiteRepository;
-        this.paymentRepository = paymentRepository;
     }
 
     @GetMapping("/sales")
@@ -95,8 +91,10 @@ public class SalesManagementController {
                 })
                 .toList();
 
-        boolean editable = !paymentRepository.existsBySalesOrderIdAndActiveTrue(order.getId())
-                && !salesOrderItemRepository.existsBySalesOrderIdAndReturnQuantityGreaterThan(order.getId(), 0);
+        // 2026-07-22 정책 변경:
+        // 수금 존재 여부만으로 판매수정을 막지 않는다.
+        // 반품이 있는 전표만 잠그고, 수금액 초과 검증은 저장 시 SalesOrderUpdateService에서 최종 처리한다.
+        boolean editable = !salesOrderItemRepository.existsBySalesOrderIdAndReturnQuantityGreaterThan(order.getId(), 0);
 
         return new SalesManagementResponse(order, customer, jobSite, editable, items);
     }

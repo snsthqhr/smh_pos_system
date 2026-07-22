@@ -109,9 +109,11 @@
                 고객명
                 <input type="search" data-detail-customer-name readonly>
             </label>
-            <label>
+            <label class="management-jobsite-search">
                 현장
-                <input data-detail-jobsite-name readonly>
+                <input data-detail-jobsite-name readonly autocomplete="off">
+                <!-- 판매 수정 시 현장은 임의 텍스트가 아니라 기존 현장 검색 결과에서 선택한다. -->
+                <div class="customer-results management-jobsite-results" data-detail-jobsite-results hidden></div>
             </label>
             <label>
                 합계금액

@@ -172,8 +172,8 @@ public class SalesOrderUpdateServiceTest {
     }
 
     @Test
-    @DisplayName("이미 수금이 존재하면 판매내역을 수정할 수 없다")
-    void updateSalesOrder_fail_whenPaymentExists() {
+    @DisplayName("이미 수금이 있어도 수정 후 판매금액이 수금액 이상이면 판매내역을 수정할 수 있다")
+    void updateSalesOrder_success_whenPaymentExistsAndNewTotalCoversPayment() {
         // given
         Long customerId = 2L;
 
@@ -225,6 +225,16 @@ public class SalesOrderUpdateServiceTest {
         payment.setActive(true);
         paymentRepository.save(payment);
 
+        ArTx saleTx = new ArTx();
+        saleTx.setCustomerId(customerId);
+        saleTx.setSalesOrderId(savedOrder.getId());
+        saleTx.setTxDate(LocalDate.now());
+        saleTx.setTxType("SALE");
+        saleTx.setAmount(70000);
+        saleTx.setMemo("판매");
+        saleTx.setActive(true);
+        arTxRepository.save(saleTx);
+
         UpdateSalesOrderItemRequest itemRequest = new UpdateSalesOrderItemRequest();
         itemRequest.setSalesOrderItemId(savedItem.getId());
         itemRequest.setProductId(savedProduct.getId());
@@ -239,10 +249,185 @@ public class SalesOrderUpdateServiceTest {
         request.setMemo("수정 시도");
         request.setItems(items);
 
+        // when
+        salesOrderUpdateService.updateSalesOrder(request);
+
+        // then
+        SalesOrder updatedOrder = salesOrderRepository.findById(savedOrder.getId()).orElseThrow();
+        assertThat(updatedOrder.getTotalAmount()).isEqualTo(140000);
+
+        ArTx updatedSaleTx = arTxRepository
+                .findBySalesOrderIdAndTxTypeAndActiveTrue(savedOrder.getId(), "SALE")
+                .orElseThrow();
+        assertThat(updatedSaleTx.getAmount()).isEqualTo(140000);
+        assertThat(paymentRepository.findBySalesOrderIdAndActiveTrue(savedOrder.getId()).size()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("이미 수금된 금액보다 수정 후 판매금액이 작으면 판매내역을 수정할 수 없다")
+    void updateSalesOrder_fail_whenNewTotalIsLessThanPaidAmount() {
+        // given
+        Long customerId = 22L;
+
+        Product product = new Product();
+        product.setCode("P-7102");
+        product.setProductName("우레탄 중도");
+        product.setProductNickname("우레탄 중도");
+        product.setVariant("18L");
+        product.setUnit("말");
+        product.setBrand("삼화");
+        product.setCategory("테스트");
+        product.setCostPrice(50000);
+        product.setSalePrice(100000);
+        product.setStockQuantity(100);
+        Product savedProduct = productRepository.save(product);
+
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(customerId);
+        salesOrder.setJobSiteId(null);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setMemo("수금 초과 검증 전표");
+        salesOrder.setTotalNetAmount(100000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(100000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(savedProduct.getId());
+        item.setQuantity(1);
+        item.setUnitPrice(100000);
+        item.setSupplyPrice(100000);
+        item.setTaxPrice(0);
+        item.setTotalPrice(100000);
+        item.setReturnQuantity(0);
+        item.setActive(true);
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        Payment payment = new Payment();
+        payment.setCustomerId(customerId);
+        payment.setSalesOrderId(savedOrder.getId());
+        payment.setPaymentDate(LocalDate.now());
+        payment.setAmount(80000);
+        payment.setPaymentMethod("TRANSFER");
+        payment.setMemo("일부 수금");
+        payment.setActive(true);
+        paymentRepository.save(payment);
+
+        ArTx saleTx = new ArTx();
+        saleTx.setCustomerId(customerId);
+        saleTx.setSalesOrderId(savedOrder.getId());
+        saleTx.setTxDate(LocalDate.now());
+        saleTx.setTxType("SALE");
+        saleTx.setAmount(100000);
+        saleTx.setMemo("판매");
+        saleTx.setActive(true);
+        arTxRepository.save(saleTx);
+
+        UpdateSalesOrderItemRequest itemRequest = new UpdateSalesOrderItemRequest();
+        itemRequest.setSalesOrderItemId(savedItem.getId());
+        itemRequest.setProductId(savedProduct.getId());
+        itemRequest.setQuantity(1);
+        itemRequest.setUnitPrice(70000);
+
+        List<UpdateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        UpdateSalesOrderRequest request = new UpdateSalesOrderRequest();
+        request.setSalesOrderId(savedOrder.getId());
+        request.setMemo("수정 시도");
+        request.setItems(items);
+
         // when & then
         assertThatThrownBy(() -> salesOrderUpdateService.updateSalesOrder(request))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("이미 수금이 존재하여 수정할 수 없습니다.");
+                .hasMessageContaining("수정 후 판매금액이 이미 수금된 금액보다 작아 수정할 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("즉시결제 전표를 수정하면 연결된 Payment 금액과 일자도 함께 수정된다")
+    void updateSalesOrder_success_whenImmediatePaymentExists() {
+        // given
+        Long customerId = 23L;
+
+        Product product = new Product();
+        product.setCode("P-7103");
+        product.setProductName("777에나멜 적청색");
+        product.setProductNickname("777에나멜 적청색");
+        product.setVariant("18L");
+        product.setUnit("말");
+        product.setBrand("삼화");
+        product.setCategory("테스트");
+        product.setCostPrice(40000);
+        product.setSalePrice(52000);
+        product.setStockQuantity(100);
+        Product savedProduct = productRepository.save(product);
+
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(customerId);
+        salesOrder.setJobSiteId(null);
+        salesOrder.setPaymentType("CARD");
+        salesOrder.setSalesDate(LocalDate.of(2026, 7, 22));
+        salesOrder.setTaxPolicy("NO_TAX");
+        salesOrder.setMemo("카드 전표");
+        salesOrder.setTotalNetAmount(104000);
+        salesOrder.setTotalTaxAmount(0);
+        salesOrder.setTotalAmount(104000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(savedProduct.getId());
+        item.setQuantity(2);
+        item.setUnitPrice(52000);
+        item.setSupplyPrice(104000);
+        item.setTaxPrice(0);
+        item.setTotalPrice(104000);
+        item.setReturnQuantity(0);
+        item.setActive(true);
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        Payment payment = new Payment();
+        payment.setCustomerId(customerId);
+        payment.setSalesOrderId(savedOrder.getId());
+        payment.setPaymentDate(LocalDate.of(2026, 7, 22));
+        payment.setAmount(104000);
+        payment.setPaymentMethod("CARD");
+        payment.setMemo("판매 즉시결제");
+        payment.setActive(true);
+        paymentRepository.save(payment);
+
+        UpdateSalesOrderItemRequest itemRequest = new UpdateSalesOrderItemRequest();
+        itemRequest.setSalesOrderItemId(savedItem.getId());
+        itemRequest.setProductId(savedProduct.getId());
+        itemRequest.setQuantity(1);
+        itemRequest.setUnitPrice(52000);
+
+        List<UpdateSalesOrderItemRequest> items = new ArrayList<>();
+        items.add(itemRequest);
+
+        UpdateSalesOrderRequest request = new UpdateSalesOrderRequest();
+        request.setSalesOrderId(savedOrder.getId());
+        request.setSalesDate(LocalDate.of(2026, 7, 23));
+        request.setMemo("카드 전표 수정");
+        request.setItems(items);
+
+        // when
+        salesOrderUpdateService.updateSalesOrder(request);
+
+        // then
+        SalesOrder updatedOrder = salesOrderRepository.findById(savedOrder.getId()).orElseThrow();
+        assertThat(updatedOrder.getSalesDate()).isEqualTo(LocalDate.of(2026, 7, 23));
+        assertThat(updatedOrder.getTotalAmount()).isEqualTo(52000);
+
+        Payment updatedPayment = paymentRepository.findBySalesOrderIdAndActiveTrue(savedOrder.getId()).get(0);
+        assertThat(updatedPayment.getPaymentDate()).isEqualTo(LocalDate.of(2026, 7, 23));
+        assertThat(updatedPayment.getAmount()).isEqualTo(52000);
+        assertThat(updatedPayment.getPaymentMethod()).isEqualTo("CARD");
     }
 
     @Test

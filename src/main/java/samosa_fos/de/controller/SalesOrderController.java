@@ -1,6 +1,7 @@
 package samosa_fos.de.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import samosa_fos.de.domain.SalesOrder;
@@ -39,6 +40,11 @@ public class SalesOrderController {
         }
         request.setSalesOrderId(salesOrderId);
         salesOrderUpdateService.updateSalesOrder(request);
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<String> handleUpdateException(RuntimeException exception) {
+        return ResponseEntity.badRequest().body(exception.getMessage());
     }
 
     private void validate(CreateSalesOrderRequest request) {

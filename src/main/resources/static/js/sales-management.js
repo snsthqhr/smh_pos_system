@@ -2,6 +2,7 @@
     const state = {
         selectedCustomer: null,
         selectedSale: null,
+        selectedJobSite: null,
         customerSearchTimer: null
     };
 
@@ -34,6 +35,7 @@
         credit: document.querySelector("[data-detail-credit]"),
         memo: document.querySelector("[data-detail-memo]")
     };
+    const jobSiteResults = document.querySelector("[data-detail-jobsite-results]");
 
     function money(value) {
         return Number(value || 0).toLocaleString("ko-KR");
@@ -77,6 +79,20 @@
         const response = await fetch(`/api/customers?${params.toString()}`);
         if (!response.ok) {
             throw new Error("고객 검색에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    async function searchJobSites(customerId, keyword) {
+        const params = new URLSearchParams();
+        params.set("customerId", customerId);
+        if (keyword) {
+            params.set("keyword", keyword);
+        }
+
+        const response = await fetch(`/api/job-sites?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error("현장 검색에 실패했습니다.");
         }
         return response.json();
     }
@@ -233,6 +249,9 @@
 
     function selectSale(sale) {
         state.selectedSale = structuredClone(sale);
+        // 판매관리 화면에서 현장은 텍스트 임의 입력이 아니라 기존 현장 선택값으로 관리한다.
+        // 저장 시 jobSiteId를 넘겨야 하므로 화면 표시명과 선택 id를 같이 들고 있는다.
+        state.selectedJobSite = sale.jobSiteId ? { id: sale.jobSiteId, name: sale.jobSiteName || "" } : null;
         document.querySelectorAll(".history-row").forEach((row) => {
             row.classList.toggle("is-selected", Number(row.dataset.salesOrderId) === Number(sale.salesOrderId));
         });
@@ -249,12 +268,18 @@
         detail.card.value = sale.paymentType === "CARD" ? money(sale.totalAmount) : "0";
         detail.credit.value = sale.paymentType === "CREDIT" ? money(sale.totalAmount) : "0";
         detail.memo.value = sale.memo || "";
+
+        // 2026-07-22 판매수정 UI 정책:
+        // 반품 없는 전표만 편집 가능하게 열고, 실제 수금액 초과 검증은 저장 API에서 다시 검사한다.
+        detail.salesDate.readOnly = !sale.editable;
+        detail.jobSiteName.readOnly = !sale.editable;
         detail.memo.readOnly = !sale.editable;
 
         saveButton.disabled = !sale.editable;
         statementButton.disabled = false;
         renderItemRows();
-        message.textContent = sale.editable ? "수정 가능한 전표입니다." : "수금 또는 반품이 있는 전표라 수정할 수 없습니다.";
+        refreshCalculatedTotals();
+        message.textContent = sale.editable ? "수정 가능한 전표입니다." : "반품이 있는 전표라 수정할 수 없습니다.";
     }
 
     function clearDetail() {
@@ -262,6 +287,9 @@
         Object.values(detail).forEach((input) => {
             input.value = "";
         });
+        state.selectedJobSite = null;
+        jobSiteResults.hidden = true;
+        jobSiteResults.innerHTML = "";
         itemRows.innerHTML = `<div class="empty-table-state">판매 품목이 선택되면 이곳에서 수정합니다.</div>`;
         saveButton.disabled = true;
         statementButton.disabled = true;
@@ -292,13 +320,77 @@
                 <span></span>
                 <span class="number">0</span>
             `;
+            row.querySelector("[data-item-quantity]").addEventListener("input", refreshCalculatedTotals);
+            row.querySelector("[data-item-unit-price]").addEventListener("input", refreshCalculatedTotals);
             itemRows.appendChild(row);
         });
     }
 
+    function numberFromInput(input) {
+        return Number(String(input.value || "0").replaceAll(",", "")) || 0;
+    }
+
+    function refreshCalculatedTotals() {
+        const sale = state.selectedSale;
+        if (!sale) {
+            return;
+        }
+
+        let netAmount = 0;
+        let taxAmount = 0;
+        let totalAmount = 0;
+
+        // 합계금액/공급가/부가세/결제금액은 직접 입력하지 않고
+        // 품목 수량과 단가를 기준으로 화면에서 즉시 다시 계산한다.
+        itemRows.querySelectorAll(".line-item-row").forEach((row) => {
+            const quantity = numberFromInput(row.querySelector("[data-item-quantity]"));
+            const unitPrice = numberFromInput(row.querySelector("[data-item-unit-price]"));
+            const supplyPrice = quantity * unitPrice;
+            const itemTax = sale.taxPolicy === "ADD_VAT" ? Math.floor(supplyPrice * 0.1) : 0;
+            const itemTotal = supplyPrice + itemTax;
+
+            row.querySelector("[data-item-total]").textContent = money(itemTotal);
+            netAmount += supplyPrice;
+            taxAmount += itemTax;
+            totalAmount += itemTotal;
+        });
+
+        detail.totalAmount.value = money(totalAmount);
+        detail.payableAmount.value = money(totalAmount);
+        detail.netAmount.value = money(netAmount);
+        detail.taxAmount.value = money(taxAmount);
+        detail.cash.value = sale.paymentType === "CASH" ? money(totalAmount) : "0";
+        detail.transfer.value = sale.paymentType === "TRANSFER" ? money(totalAmount) : "0";
+        detail.card.value = sale.paymentType === "CARD" ? money(totalAmount) : "0";
+        detail.credit.value = sale.paymentType === "CREDIT" ? money(totalAmount) : "0";
+    }
+
+    function ensureSelectedJobSite() {
+        const name = detail.jobSiteName.value.trim();
+        if (!name) {
+            state.selectedJobSite = null;
+            return null;
+        }
+
+        // 현장명을 임의 텍스트로 저장하면 jobSiteId가 없어지므로,
+        // 기존 현장 검색 결과에서 고른 값만 저장하도록 막는다.
+        if (state.selectedJobSite && normalizeName(state.selectedJobSite.name) === normalizeName(name)) {
+            return state.selectedJobSite.id;
+        }
+        throw new Error("현장은 검색 결과에서 선택하거나 비워주세요.");
+    }
+
     function collectUpdatePayload() {
         const sale = state.selectedSale;
+        if (!detail.salesDate.value) {
+            throw new Error("판매일자는 필수입니다.");
+        }
+
+        // 서버에 저장하는 값은 판매일자/현장/메모/품목 수량/단가까지만 보낸다.
+        // 총액, 공급가, 부가세, 결제금액은 서버 서비스에서 다시 계산한다.
         return {
+            salesDate: detail.salesDate.value || null,
+            jobSiteId: ensureSelectedJobSite(),
             memo: detail.memo.value.trim(),
             items: Array.from(itemRows.querySelectorAll(".line-item-row")).map((row) => {
                 const salesOrderItemId = Number(row.dataset.salesOrderItemId);
@@ -379,6 +471,52 @@
                 await saveSelectedSale();
             } catch (error) {
                 message.textContent = error.message;
+                alert(error.message);
+            }
+        });
+
+        detail.jobSiteName.addEventListener("input", async () => {
+            if (!state.selectedSale || !state.selectedSale.editable) {
+                return;
+            }
+
+            // 현장은 현재 전표 고객에게 등록된 현장만 검색해서 선택할 수 있다.
+            // 고객 변경은 Payment/ArTx의 고객 기준과 충돌할 수 있어 이번 범위에서 열지 않았다.
+            state.selectedJobSite = null;
+            const keyword = detail.jobSiteName.value.trim();
+            if (!keyword) {
+                jobSiteResults.hidden = true;
+                jobSiteResults.innerHTML = "";
+                return;
+            }
+            try {
+                const jobSites = await searchJobSites(state.selectedSale.customerId, keyword);
+                jobSiteResults.innerHTML = "";
+                if (!jobSites.length) {
+                    jobSiteResults.innerHTML = `<button type="button" class="customer-result-row"><span>검색된 현장 없음</span></button>`;
+                }
+                jobSites.forEach((jobSite) => {
+                    const row = document.createElement("button");
+                    row.type = "button";
+                    row.className = "customer-result-row";
+                    row.innerHTML = `<span>${jobSite.name}</span><small>기존 현장</small>`;
+                    row.addEventListener("click", () => {
+                        state.selectedJobSite = jobSite;
+                        detail.jobSiteName.value = jobSite.name;
+                        jobSiteResults.hidden = true;
+                        jobSiteResults.innerHTML = "";
+                    });
+                    jobSiteResults.appendChild(row);
+                });
+                jobSiteResults.hidden = false;
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!jobSiteResults.contains(event.target) && event.target !== detail.jobSiteName) {
+                jobSiteResults.hidden = true;
             }
         });
     }

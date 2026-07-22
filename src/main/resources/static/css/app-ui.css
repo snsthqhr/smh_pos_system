@@ -194,8 +194,13 @@ label {
     background: white;
 }
 
-.customer-result-row:hover {
+.customer-result-row:hover,
+.customer-result-row.is-active {
     background: #fff8f3;
+}
+
+.customer-result-row.is-active {
+    box-shadow: inset 4px 0 0 var(--accent);
 }
 
 .customer-result-row small {
@@ -243,6 +248,9 @@ label {
 .sale-grid,
 .history-table,
 .line-item-table {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
     background: white;
     border-bottom: 1px solid var(--line-dark);
     overflow: hidden;
@@ -914,7 +922,9 @@ label {
 .management-layout {
     display: grid;
     grid-template-rows: auto auto 190px auto 1fr;
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .ar-layout {
@@ -979,10 +989,20 @@ label {
     grid-template-columns: auto minmax(0, 1fr) 54px;
 }
 
+.management-jobsite-search {
+    position: relative;
+}
+
 .management-customer-results {
     left: 48px;
     top: 32px;
     width: min(460px, 100%);
+}
+
+.management-jobsite-results {
+    left: 0;
+    top: 58px;
+    width: 100%;
 }
 
 .date-divider {
@@ -995,7 +1015,9 @@ label {
 
 .management-history-rows,
 .management-item-rows {
+    min-height: 0;
     overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 .history-row,

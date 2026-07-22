@@ -23,5 +23,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // 특정 판매 전표와 연결된 수금 내역 조회
     List<Payment> findBySalesOrderId(Long salesOrderId);
 
+    // 판매 수정 시 전표에 직접 연결된 활성 수금액 합계와 즉시결제 Payment 갱신에 사용한다.
+    List<Payment> findBySalesOrderIdAndActiveTrue(Long salesOrderId);
+
     boolean existsBySalesOrderIdAndActiveTrue(Long salesOrderId);
 }

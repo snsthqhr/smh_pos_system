@@ -3,6 +3,7 @@ package samosa_fos.de.service;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import samosa_fos.de.domain.ArTx;
+import samosa_fos.de.domain.Payment;
 import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.domain.SalesOrderItem;
 import samosa_fos.de.dto.sales.UpdateSalesOrderItemRequest;
@@ -42,18 +43,33 @@ public class SalesOrderUpdateService {
         SalesOrder salesOrder = salesOrderRepository.findById(request.getSalesOrderId())
                 .orElseThrow(()->new IllegalArgumentException("판매 전표가 존재하지 않습니다."));
 
-        //2. 수정 가능 여부 검증
-        validateUpdatable(salesOrder.getId());
-        //3. 기존  금액
-        int oldTotalAmount = salesOrder.getTotalAmount() == null? 0 : salesOrder.getTotalAmount();
-        //4. 품목 수정 및 금액 재계산,금액 갱신
+        // 2026-07-22 정책 변경:
+        // 수금이 있는 전표도 조건부로 수정할 수 있게 열었지만,
+        // 현재 반품은 returnQuantity 누적 방식이라 원본 판매를 바꾸면 반품 금액 정합성이 깨질 수 있다.
+        // 그래서 반품이 있는 전표는 기존처럼 수정 금지한다.
+        validateNoReturn(salesOrder.getId());
+
+        // 품목 수량/단가를 먼저 반영해서 수정 후 전표 총액을 계산한다.
+        // 이 금액을 기준으로 수금액 초과 여부와 ArTx/Payment 갱신을 판단한다.
         int newTotalAmount = updateItems(salesOrder,request.getItems());
 
-        //5.salesOrder 메모 업데이트
+        // 외상 전표는 ArTx(SALE) - ArTx(PAYMENT)가 미수금 기준이다.
+        // 수정 후 판매금액이 이미 연결된 수금액보다 작아지면 전표 기준 미수금이 음수가 되므로 저장을 막는다.
+        if ("CREDIT".equals(salesOrder.getPaymentType())) {
+            validatePaymentCovered(salesOrder.getId(), newTotalAmount);
+        }
+
+        // 판매관리 화면에서 수정 가능한 헤더 값: 판매일자, 현장, 메모.
+        // 고객명/결제방식/결제금액 분할은 기존 돈 흐름이 꼬일 수 있어 이번 범위에서는 열지 않았다.
+        if (request.getSalesDate() != null) {
+            salesOrder.setSalesDate(request.getSalesDate());
+        }
+        salesOrder.setJobSiteId(request.getJobSiteId());
         salesOrder.setMemo(request.getMemo());
 
-        //6.ArTx(SALE)수정
-        updateArTx(salesOrder.getId(),newTotalAmount);
+        // 결제 방식에 따라 돈 흐름의 기준 데이터가 다르다.
+        // 외상은 ArTx(SALE)를 수정하고, 즉시결제는 연결 Payment를 수정한다.
+        updateMoneyFlow(salesOrder,newTotalAmount);
     }
 
 
@@ -61,21 +77,30 @@ public class SalesOrderUpdateService {
      * 수정 가능 여부 검증
      *
      */
-
-    private void validateUpdatable(Long salesOrderId){
-        boolean hasPayment = paymentRepository.
-                existsBySalesOrderIdAndActiveTrue(salesOrderId);
+    private void validateNoReturn(Long salesOrderId){
         boolean hasReturn = salesOrderItemRepository
                 .existsBySalesOrderIdAndReturnQuantityGreaterThan(salesOrderId,0);
 
-        if (hasPayment) {
-            throw new IllegalStateException("이미 수금이 존재하여 수정할 수 없습니다.");
-
-        }
         if(hasReturn) {
             throw new IllegalStateException("이미 반품이 존재하여 수정할 수 없습니다.");
         }
 
+    }
+
+    private void validatePaymentCovered(Long salesOrderId, int newTotalAmount) {
+        // 특정 전표에 직접 연결된 활성 수금만 비교한다.
+        // 고객 전체 수금(salesOrderId=null)은 고객 단위 수금이라 특정 전표 수정 제한에는 직접 사용하지 않는다.
+        int paidAmount = paymentRepository.findBySalesOrderIdAndActiveTrue(salesOrderId).stream()
+                .mapToInt(payment -> payment.getAmount() == null ? 0 : payment.getAmount())
+                .sum();
+
+        if (newTotalAmount < paidAmount) {
+            throw new IllegalStateException("수정 후 판매금액이 이미 수금된 금액보다 작아 수정할 수 없습니다.");
+        }
+    }
+
+    private List<Payment> findActivePayments(Long salesOrderId) {
+        return paymentRepository.findBySalesOrderIdAndActiveTrue(salesOrderId);
     }
 
     private int updateItems (SalesOrder salesOrder, List<UpdateSalesOrderItemRequest> itemRequests){
@@ -87,6 +112,8 @@ public class SalesOrderUpdateService {
         int totalNet = 0;
         int totalTax = 0;
         int totalAmount = 0;
+        // 이번 수정 요청에 포함된 품목 id를 모아두고,
+        // 요청에서 빠진 기존 품목은 아래에서 active=false 처리한다.
         Set<Long> keptItemIds = new java.util.HashSet<>();
 
         for(UpdateSalesOrderItemRequest req : itemRequests) {
@@ -141,6 +168,8 @@ public class SalesOrderUpdateService {
             keptItemIds.add(savedItem.getId());
         }
 
+        // 수정 요청에 포함되지 않은 기존 품목은 실제 삭제하지 않고 비활성화한다.
+        // 이렇게 해야 과거 전표/이력 추적 가능성을 남겨둘 수 있다.
         salesOrderItemRepository.findBySalesOrderId(salesOrder.getId()).stream()
                 .filter(item -> Boolean.TRUE.equals(item.getActive()))
                 .filter(item -> item.getId() != null)
@@ -156,13 +185,42 @@ public class SalesOrderUpdateService {
     }
 
 
-    private void updateArTx(Long salesOrderId, int totalAmount){
+    private void updateMoneyFlow(SalesOrder salesOrder, int totalAmount) {
+        if ("CREDIT".equals(salesOrder.getPaymentType())) {
+            updateArTx(salesOrder, totalAmount);
+            return;
+        }
 
+        updateImmediatePayment(salesOrder, totalAmount);
+    }
+
+    private void updateArTx(SalesOrder salesOrder, int totalAmount){
+
+        // 외상 판매는 미수금 기준 데이터가 ArTx(SALE)이므로
+        // 전표 수정 후 총액과 판매일자를 ArTx에도 맞춰준다.
         ArTx arTx = arTxRepository
-                .findBySalesOrderIdAndTxTypeAndActiveTrue(salesOrderId,"SALE")
+                .findBySalesOrderIdAndTxTypeAndActiveTrue(salesOrder.getId(),"SALE")
                 .orElseThrow(() -> new IllegalArgumentException("SALE ArTx가 존재하지 않습니다."));
 
-                arTx.setAmount(totalAmount);
+        arTx.setTxDate(salesOrder.getSalesDate());
+        arTx.setAmount(totalAmount);
+    }
+
+    private void updateImmediatePayment(SalesOrder salesOrder, int totalAmount) {
+        // 즉시결제 판매는 생성 시 ArTx(SALE)을 만들지 않고 Payment만 만든다.
+        // 그래서 카드/현금/통장입금 전표 수정 시에는 연결된 즉시결제 Payment 금액을 같이 맞춘다.
+        List<Payment> activePayments = findActivePayments(salesOrder.getId());
+        if (activePayments.isEmpty()) {
+            return;
+        }
+        if (activePayments.size() > 1) {
+            throw new IllegalStateException("즉시결제 전표에 연결된 수금이 여러 건이라 자동 수정할 수 없습니다.");
+        }
+
+        Payment payment = activePayments.get(0);
+        payment.setPaymentDate(salesOrder.getSalesDate());
+        payment.setPaymentMethod(salesOrder.getPaymentType());
+        payment.setAmount(totalAmount);
     }
 
 }

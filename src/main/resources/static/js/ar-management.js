@@ -4,6 +4,8 @@
         selectedSale: null,
         customerSearchTimer: null,
         paymentCustomerSearchTimer: null,
+        customerActiveIndex: -1,
+        paymentCustomerActiveIndex: -1,
         paymentSales: []
     };
 
@@ -117,9 +119,48 @@
         });
     }
 
+    function getCustomerResultRows(resultsElement) {
+        return Array.from(resultsElement.querySelectorAll(".customer-result-row[data-customer-index]"));
+    }
+
+    function updateCustomerActiveRow(resultsElement, activeIndex) {
+        getCustomerResultRows(resultsElement).forEach((row, index) => {
+            const active = index === activeIndex;
+            row.classList.toggle("is-active", active);
+            if (active) {
+                row.scrollIntoView({ block: "nearest" });
+            }
+        });
+    }
+
+    function moveCustomerActiveRow(resultsElement, activeIndex, direction) {
+        const rows = getCustomerResultRows(resultsElement);
+        if (!rows.length) {
+            return -1;
+        }
+
+        const nextIndex = activeIndex < 0
+                ? (direction > 0 ? 0 : rows.length - 1)
+                : (activeIndex + direction + rows.length) % rows.length;
+        updateCustomerActiveRow(resultsElement, nextIndex);
+        return nextIndex;
+    }
+
+    function pickCustomerByKeyboard(resultsElement, activeIndex) {
+        const rows = getCustomerResultRows(resultsElement);
+        if (!rows.length) {
+            return false;
+        }
+
+        const index = activeIndex >= 0 ? activeIndex : 0;
+        rows[index].click();
+        return true;
+    }
+
     function renderCustomerResults(customers) {
         const uniqueCustomers = uniqueCustomersByName(customers);
         customerResults.innerHTML = "";
+        state.customerActiveIndex = -1;
 
         if (!uniqueCustomers.length) {
             customerResults.innerHTML = `<button type="button" class="customer-result-row"><span>검색된 고객 없음</span></button>`;
@@ -127,10 +168,11 @@
             return;
         }
 
-        uniqueCustomers.forEach((customer) => {
+        uniqueCustomers.forEach((customer, index) => {
             const row = document.createElement("button");
             row.type = "button";
             row.className = "customer-result-row";
+            row.dataset.customerIndex = String(index);
             row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || "기존 고객"}</small>`;
             row.addEventListener("click", () => selectCustomer(customer));
             customerResults.appendChild(row);
@@ -144,6 +186,7 @@
         state.selectedCustomer = null;
         state.selectedSale = null;
         customerClear.hidden = true;
+        state.customerActiveIndex = -1;
         clearTimeout(state.customerSearchTimer);
 
         if (!keyword) {
@@ -161,6 +204,35 @@
                 customerResults.hidden = false;
             }
         }, 180);
+    }
+
+    function handleCustomerKeydown(event) {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            state.customerActiveIndex = moveCustomerActiveRow(customerResults, state.customerActiveIndex, 1);
+            customerResults.hidden = false;
+            return;
+        }
+
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            state.customerActiveIndex = moveCustomerActiveRow(customerResults, state.customerActiveIndex, -1);
+            customerResults.hidden = false;
+            return;
+        }
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (!customerResults.hidden && pickCustomerByKeyboard(customerResults, state.customerActiveIndex)) {
+                return;
+            }
+            searchArButton.click();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            customerResults.hidden = true;
+        }
     }
 
     async function selectCustomer(customer) {
@@ -199,19 +271,21 @@
     async function showAllCustomersView() {
         state.selectedCustomer = null;
         state.selectedSale = null;
-        currentBalance.textContent = "전체";
+        currentBalance.textContent = "0";
         paymentCustomerLabel.textContent = "고객을 선택하세요.";
         paymentAmount.value = "";
         paymentMemo.value = "";
         paymentButton.disabled = true;
         updatePaymentDue(null, "선택 기준 미수금");
         clearSelectedSale();
-        arMessage.textContent = "전체 고객의 외상 전표를 조회합니다.";
+        arMessage.textContent = "전체 고객의 최종 미수금액을 조회합니다.";
         paymentMessage.textContent = "";
 
         try {
-            const ledger = await fetchLedgerRows(null);
-            renderPaymentHistoryRows(ledger);
+            // 고객명이 비어 있는 전체 조회에서는 기간 필터와 수금 이력 목록을 보여주지 않고,
+            // ArTx 전체 흐름을 고객별로 합산해 현재 최종 미수금 요약만 표시한다.
+            const ledger = await fetchLedgerRows(null, { ignoreDateRange: true });
+            renderAllCustomerBalanceRows(ledger);
         } catch (error) {
             arMessage.textContent = error.message;
             renderPaymentHistoryRows([]);
@@ -239,6 +313,7 @@
     function renderPaymentHistoryRows(rows) {
         paymentHistoryRows.innerHTML = "";
 
+        // 고객을 특정한 경우에는 요청대로 수금일자/금액/수금 후 잔액 이력을 보여준다.
         const paymentRows = rows.filter((row) => row.txType === "수금");
         if (!paymentRows.length) {
             paymentHistoryRows.innerHTML = `<div class="empty-table-state">조회된 수금 이력이 없습니다.</div>`;
@@ -262,6 +337,73 @@
             `;
             paymentHistoryRows.appendChild(line);
         });
+    }
+
+    function renderAllCustomerBalanceRows(rows) {
+        paymentHistoryRows.innerHTML = "";
+
+        // 전체 조회 모드에서는 표의 기존 컬럼을 재사용하되,
+        // 각 고객의 최종 미수금만 한 줄씩 보여준다.
+        const balances = buildCustomerBalanceSummaries(rows);
+        const totalBalance = balances.reduce((sum, row) => sum + row.balance, 0);
+        currentBalance.textContent = money(totalBalance);
+
+        if (!balances.length) {
+            paymentHistoryRows.innerHTML = `<div class="empty-table-state">현재 미수금이 있는 고객이 없습니다.</div>`;
+            return;
+        }
+
+        balances.forEach((row) => {
+            const line = document.createElement("div");
+            line.className = "ar-payment-history-row";
+            line.innerHTML = `
+                <span>${row.lastDate || ""}</span>
+                <span title="${row.customerName || ""}">${row.customerName || ""}</span>
+                <span>고객 최종</span>
+                <span class="number"></span>
+                <span class="number">${money(row.balance)}</span>
+                <span>최종 미수금</span>
+            `;
+            paymentHistoryRows.appendChild(line);
+        });
+    }
+
+    function buildCustomerBalanceSummaries(rows) {
+        const summaries = new Map();
+
+        // 프로젝트 기준 정책에 맞춰 고객별 현재 미수금은 ArTx(arDelta) 합계로 계산한다.
+        // row.balance는 기간 조회/정렬 조건의 영향을 받을 수 있어 전체 요약에서는 직접 합산한다.
+        rows.forEach((row) => {
+            const delta = Number(row.arDelta || 0);
+            if (delta === 0) {
+                return;
+            }
+
+            const key = customerKey(row);
+            if (!summaries.has(key)) {
+                summaries.set(key, {
+                    customerName: row.customerName || "",
+                    lastDate: row.txDate || "",
+                    balance: 0
+                });
+            }
+
+            const summary = summaries.get(key);
+            summary.balance += delta;
+            if ((row.txDate || "") > (summary.lastDate || "")) {
+                summary.lastDate = row.txDate || "";
+            }
+        });
+
+        return Array.from(summaries.values())
+                .filter((row) => row.balance !== 0)
+                .sort((left, right) => {
+                    const balanceDiff = right.balance - left.balance;
+                    if (balanceDiff !== 0) {
+                        return balanceDiff;
+                    }
+                    return (left.customerName || "").localeCompare(right.customerName || "", "ko-KR");
+                });
     }
 
     function customerKey(row) {
@@ -372,6 +514,7 @@
     function renderPaymentCustomerResults(customers) {
         const uniqueCustomers = uniqueCustomersByName(customers);
         paymentCustomerResults.innerHTML = "";
+        state.paymentCustomerActiveIndex = -1;
 
         if (!uniqueCustomers.length) {
             paymentCustomerResults.innerHTML = `<button type="button" class="customer-result-row"><span>검색된 고객 없음</span></button>`;
@@ -379,10 +522,11 @@
             return;
         }
 
-        uniqueCustomers.forEach((customer) => {
+        uniqueCustomers.forEach((customer, index) => {
             const row = document.createElement("button");
             row.type = "button";
             row.className = "customer-result-row";
+            row.dataset.customerIndex = String(index);
             row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || "기존 고객"}</small>`;
             row.addEventListener("click", () => selectPaymentCustomer(customer));
             paymentCustomerResults.appendChild(row);
@@ -395,6 +539,7 @@
         const keyword = paymentCustomerInput.value.trim();
         state.selectedCustomer = null;
         state.selectedSale = null;
+        state.paymentCustomerActiveIndex = -1;
         paymentCustomerLabel.textContent = "고객을 선택하세요.";
         paymentButton.disabled = true;
         updatePaymentDue(null, "선택 기준 미수금");
@@ -415,6 +560,35 @@
                 paymentCustomerResults.hidden = false;
             }
         }, 180);
+    }
+
+    function handlePaymentCustomerKeydown(event) {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            state.paymentCustomerActiveIndex = moveCustomerActiveRow(paymentCustomerResults, state.paymentCustomerActiveIndex, 1);
+            paymentCustomerResults.hidden = false;
+            return;
+        }
+
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            state.paymentCustomerActiveIndex = moveCustomerActiveRow(paymentCustomerResults, state.paymentCustomerActiveIndex, -1);
+            paymentCustomerResults.hidden = false;
+            return;
+        }
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (!paymentCustomerResults.hidden && pickCustomerByKeyboard(paymentCustomerResults, state.paymentCustomerActiveIndex)) {
+                return;
+            }
+            paymentAmount.focus();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            paymentCustomerResults.hidden = true;
+        }
     }
 
     async function selectPaymentCustomer(customer) {
@@ -523,6 +697,7 @@
     }
 
     customerInput.addEventListener("input", handleCustomerInput);
+    customerInput.addEventListener("keydown", handleCustomerKeydown);
     customerClear.addEventListener("click", clearCustomer);
     searchArButton.addEventListener("click", async () => {
         try {
@@ -546,6 +721,7 @@
     clearSalesOrderButton.addEventListener("click", clearSelectedSale);
     openPaymentModalButton.addEventListener("click", openPaymentModal);
     paymentCustomerInput.addEventListener("input", handlePaymentCustomerInput);
+    paymentCustomerInput.addEventListener("keydown", handlePaymentCustomerKeydown);
     paymentSalesOrder.addEventListener("change", handlePaymentSalesOrderChange);
     closePaymentModalButtons.forEach((button) => button.addEventListener("click", closePaymentModal));
     paymentModal.addEventListener("click", (event) => {
