@@ -1090,7 +1090,7 @@ label {
 
 .ar-customer-band {
     display: grid;
-    grid-template-columns: minmax(320px, 1.4fr) 150px 150px 76px 220px minmax(180px, 1fr);
+    grid-template-columns: minmax(320px, 1.4fr) 150px 150px 76px 220px 96px minmax(160px, 1fr);
     gap: 12px;
     align-items: center;
     padding: 12px 16px;
@@ -1127,28 +1127,12 @@ label {
     text-align: right;
 }
 
-.ar-payment-panel {
-    grid-template-columns: minmax(210px, 1.1fr) 150px 150px 150px minmax(220px, 1fr) 80px 90px minmax(160px, 0.8fr);
-}
-
-.ar-sales-table .table-header,
-.ar-sale-row {
-    grid-template-columns: 1fr 0.8fr 1.4fr 2fr 0.8fr 1fr 1fr;
-}
-
 .ar-payment-history-table .table-header,
 .ar-payment-history-row {
     grid-template-columns: 1fr 1.4fr 1fr 1fr 1fr 2fr;
 }
 
-.ar-ledger-table .table-header,
-.ar-ledger-row {
-    grid-template-columns: 1fr 0.9fr 0.8fr 1.2fr 2fr 1fr 1fr 1fr 1.5fr;
-}
-
-.ar-sale-row,
-.ar-payment-history-row,
-.ar-ledger-row {
+.ar-payment-history-row {
     display: grid;
     width: 100%;
     min-height: 36px;
@@ -1158,20 +1142,11 @@ label {
     background: white;
 }
 
-.ar-sale-row:hover,
-.ar-sale-row.is-selected,
-.ar-payment-history-row:hover,
-.ar-ledger-row:hover {
+.ar-payment-history-row:hover {
     background: #fff8f3;
 }
 
-.ar-sale-row.is-selected {
-    box-shadow: inset 4px 0 0 var(--accent);
-}
-
-.ar-sale-row span,
-.ar-payment-history-row span,
-.ar-ledger-row span {
+.ar-payment-history-row span {
     display: flex;
     align-items: center;
     min-width: 0;
@@ -1182,9 +1157,87 @@ label {
     white-space: nowrap;
 }
 
-.ar-sale-row .number,
-.ar-payment-history-row .number,
-.ar-ledger-row .number {
+.ar-payment-history-row .number {
+    justify-content: flex-end;
+}
+
+.payment-modal {
+    width: min(760px, 100%);
+    background: #f9fbf8;
+    border: 1px solid var(--line-dark);
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+}
+
+.payment-modal-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+}
+
+.payment-modal-body label {
+    display: grid;
+    gap: 5px;
+}
+
+.payment-modal-body input,
+.payment-modal-body select {
+    width: 100%;
+}
+
+.payment-modal-body .wide,
+.payment-modal-body .management-message {
+    grid-column: 1 / -1;
+}
+
+.payment-customer-picker {
+    position: relative;
+}
+
+.payment-customer-results {
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+}
+
+.payment-target-card {
+    display: grid;
+    gap: 5px;
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    background: white;
+}
+
+.payment-target-card span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.payment-due-card {
+    display: grid;
+    gap: 5px;
+    align-content: center;
+    min-height: 61px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-dark);
+    background: white;
+}
+
+.payment-due-card span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.payment-due-card strong {
+    color: var(--accent);
+    font-size: 20px;
+    text-align: right;
+}
+
+.modal-footer-actions {
+    display: flex;
+    gap: 8px;
     justify-content: flex-end;
 }
 

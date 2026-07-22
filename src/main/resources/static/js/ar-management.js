@@ -2,7 +2,9 @@
     const state = {
         selectedCustomer: null,
         selectedSale: null,
-        customerSearchTimer: null
+        customerSearchTimer: null,
+        paymentCustomerSearchTimer: null,
+        paymentSales: []
     };
 
     const customerInput = document.querySelector("[data-ar-customer-search]");
@@ -13,17 +15,22 @@
     const searchArButton = document.querySelector("[data-search-ar]");
     const currentBalance = document.querySelector("[data-ar-current-balance]");
     const arMessage = document.querySelector("[data-ar-message]");
+    const openPaymentModalButton = document.querySelector("[data-open-payment-modal]");
+    const paymentModal = document.querySelector("[data-payment-modal]");
+    const closePaymentModalButtons = document.querySelectorAll("[data-close-payment-modal]");
     const paymentCustomerLabel = document.querySelector("[data-payment-customer-label]");
+    const paymentCustomerInput = document.querySelector("[data-payment-customer-search]");
+    const paymentCustomerResults = document.querySelector("[data-payment-customer-results]");
     const paymentSalesOrder = document.querySelector("[data-payment-sales-order]");
     const paymentAmount = document.querySelector("[data-payment-amount]");
+    const paymentDueLabel = document.querySelector("[data-payment-due-label]");
+    const paymentDueAmount = document.querySelector("[data-payment-due-amount]");
     const paymentMethod = document.querySelector("[data-payment-method]");
     const paymentMemo = document.querySelector("[data-payment-memo]");
     const clearSalesOrderButton = document.querySelector("[data-clear-sales-order]");
     const paymentButton = document.querySelector("[data-register-payment]");
     const paymentMessage = document.querySelector("[data-payment-message]");
-    const salesRows = document.querySelector("[data-ar-sales-rows]");
     const paymentHistoryRows = document.querySelector("[data-ar-payment-history-rows]");
-    const ledgerRows = document.querySelector("[data-ar-ledger-rows]");
 
     function money(value) {
         return Number(value || 0).toLocaleString("ko-KR");
@@ -79,15 +86,15 @@
         return response.json();
     }
 
-    async function fetchLedgerRows(customerId) {
+    async function fetchLedgerRows(customerId, options = {}) {
         const params = new URLSearchParams();
         if (customerId) {
             params.set("customerId", customerId);
         }
-        if (startDateInput.value) {
+        if (!options.ignoreDateRange && startDateInput.value) {
             params.set("startDate", startDateInput.value);
         }
-        if (endDateInput.value) {
+        if (!options.ignoreDateRange && endDateInput.value) {
             params.set("endDate", endDateInput.value);
         }
 
@@ -163,8 +170,7 @@
         customerClear.hidden = false;
         customerResults.hidden = true;
         customerResults.innerHTML = "";
-        paymentCustomerLabel.textContent = `${customer.name} 수금`;
-        paymentButton.disabled = false;
+        paymentCustomerLabel.textContent = customer.name;
         clearSelectedSale();
         await refreshCustomerAr();
     }
@@ -185,34 +191,30 @@
         paymentAmount.value = "";
         paymentMemo.value = "";
         paymentButton.disabled = true;
+        updatePaymentDue(null, "선택 기준 미수금");
         clearSelectedSale();
-        salesRows.innerHTML = `<div class="empty-table-state">고객을 선택하면 외상 전표가 표시됩니다.</div>`;
         renderPaymentHistoryRows([]);
-        renderLedgerRows([]);
     }
 
     async function showAllCustomersView() {
         state.selectedCustomer = null;
         state.selectedSale = null;
         currentBalance.textContent = "전체";
-        paymentCustomerLabel.textContent = "고객을 선택하면 수금할 수 있습니다.";
+        paymentCustomerLabel.textContent = "고객을 선택하세요.";
         paymentAmount.value = "";
         paymentMemo.value = "";
         paymentButton.disabled = true;
+        updatePaymentDue(null, "선택 기준 미수금");
         clearSelectedSale();
         arMessage.textContent = "전체 고객의 외상 전표를 조회합니다.";
         paymentMessage.textContent = "";
 
         try {
-            const sales = await fetchCreditSales(null);
             const ledger = await fetchLedgerRows(null);
-            renderSalesRows(sales);
             renderPaymentHistoryRows(ledger);
-            renderLedgerRows(ledger);
         } catch (error) {
-            salesRows.innerHTML = `<div class="empty-table-state">${error.message}</div>`;
+            arMessage.textContent = error.message;
             renderPaymentHistoryRows([]);
-            renderLedgerRows([]);
         }
     }
 
@@ -228,40 +230,10 @@
         const balance = await fetchArBalance(state.selectedCustomer.id);
         currentBalance.textContent = money(balance);
         paymentButton.disabled = balance <= 0;
+        paymentCustomerLabel.textContent = state.selectedCustomer.name;
 
-        const sales = await fetchCreditSales(state.selectedCustomer.id);
         const ledger = await fetchLedgerRows(state.selectedCustomer.id);
-        renderSalesRows(sales);
         renderPaymentHistoryRows(ledger);
-        renderLedgerRows(ledger, balance);
-    }
-
-    function renderSalesRows(sales) {
-        salesRows.innerHTML = "";
-        const creditSales = sales.filter((sale) => sale.paymentType === "CREDIT");
-
-        if (!creditSales.length) {
-            salesRows.innerHTML = `<div class="empty-table-state">외상 판매전표가 없습니다.</div>`;
-            return;
-        }
-
-        creditSales.forEach((sale) => {
-            const row = document.createElement("button");
-            row.type = "button";
-            row.className = "ar-sale-row";
-            row.dataset.salesOrderId = sale.salesOrderId;
-            row.innerHTML = `
-                <span>${sale.salesDate || ""}</span>
-                <span>${sale.salesOrderId}</span>
-                <span>${sale.customerName || ""}</span>
-                <span title="${sale.representativeProductName || ""}">${sale.representativeProductName || ""}</span>
-                <span class="number">${money(sale.totalQuantity)}</span>
-                <span class="number">${money(sale.totalAmount)}</span>
-                <span>${sale.editable ? "수금 전" : "수금/반품 있음"}</span>
-            `;
-            row.addEventListener("click", () => selectSale(sale));
-            salesRows.appendChild(row);
-        });
     }
 
     function renderPaymentHistoryRows(rows) {
@@ -290,64 +262,6 @@
             `;
             paymentHistoryRows.appendChild(line);
         });
-    }
-
-    function selectSale(sale) {
-        if (!state.selectedCustomer && sale.customerId) {
-            state.selectedCustomer = {
-                id: sale.customerId,
-                name: sale.customerName || ""
-            };
-            customerInput.value = sale.customerName || "";
-            customerClear.hidden = false;
-            paymentCustomerLabel.textContent = `${sale.customerName || "선택 고객"} 수금`;
-            paymentButton.disabled = false;
-        }
-
-        state.selectedSale = sale;
-        paymentSalesOrder.value = `전표 ${sale.salesOrderId}`;
-        clearSalesOrderButton.disabled = false;
-
-        document.querySelectorAll(".ar-sale-row").forEach((row) => {
-            row.classList.toggle("is-selected", Number(row.dataset.salesOrderId) === Number(sale.salesOrderId));
-        });
-    }
-
-    function renderLedgerRows(rows) {
-        ledgerRows.innerHTML = "";
-
-        const arRows = rows.filter((row) => Number(row.arDelta || 0) !== 0 || row.txType === "수금");
-        if (!arRows.length) {
-            ledgerRows.innerHTML = `<div class="empty-table-state">조회된 미수 흐름이 없습니다.</div>`;
-            return;
-        }
-
-        arRows.forEach((row) => {
-            const delta = Number(row.arDelta || 0);
-            const increase = delta > 0 ? delta : 0;
-            const decrease = delta < 0 ? Math.abs(delta) : 0;
-            const line = document.createElement("div");
-            line.className = "ar-ledger-row";
-            line.innerHTML = `
-                <span>${row.txDate || ""}</span>
-                <span>${ledgerTypeLabel(row.txType)}</span>
-                <span>${row.salesOrderId || ""}</span>
-                <span title="${row.customerName || ""}">${row.customerName || ""}</span>
-                <span title="${row.productName || ""}">${row.productName || ""}</span>
-                <span class="number">${money(increase)}</span>
-                <span class="number">${money(decrease)}</span>
-                <span class="number">${money(row.balance)}</span>
-                <span title="${row.memo || ""}">${row.memo || ""}</span>
-            `;
-            ledgerRows.appendChild(line);
-        });
-    }
-
-    function ledgerTypeLabel(txType) {
-        if (txType === "오더합계") {
-            return "외상판매";
-        }
-        return txType || "";
     }
 
     function customerKey(row) {
@@ -425,9 +339,150 @@
 
     function clearSelectedSale() {
         state.selectedSale = null;
-        paymentSalesOrder.value = "고객 전체 수금";
+        paymentSalesOrder.value = "";
         clearSalesOrderButton.disabled = true;
-        document.querySelectorAll(".ar-sale-row").forEach((row) => row.classList.remove("is-selected"));
+        if (!paymentModal.hidden) {
+            updatePaymentDueForSelection();
+        }
+    }
+
+    async function openPaymentModal() {
+        paymentCustomerInput.value = state.selectedCustomer ? state.selectedCustomer.name : "";
+        paymentCustomerLabel.textContent = state.selectedCustomer ? state.selectedCustomer.name : "고객을 선택하세요.";
+        paymentMessage.textContent = "";
+        paymentModal.hidden = false;
+
+        if (state.selectedCustomer) {
+            await populatePaymentSalesOptions(state.selectedCustomer.id);
+            paymentAmount.focus();
+            return;
+        }
+
+        renderPaymentSalesOptions([]);
+        paymentCustomerInput.focus();
+    }
+
+    function closePaymentModal() {
+        paymentModal.hidden = true;
+        paymentMessage.textContent = "";
+        paymentCustomerResults.hidden = true;
+        paymentCustomerResults.innerHTML = "";
+    }
+
+    function renderPaymentCustomerResults(customers) {
+        const uniqueCustomers = uniqueCustomersByName(customers);
+        paymentCustomerResults.innerHTML = "";
+
+        if (!uniqueCustomers.length) {
+            paymentCustomerResults.innerHTML = `<button type="button" class="customer-result-row"><span>검색된 고객 없음</span></button>`;
+            paymentCustomerResults.hidden = false;
+            return;
+        }
+
+        uniqueCustomers.forEach((customer) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "customer-result-row";
+            row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || "기존 고객"}</small>`;
+            row.addEventListener("click", () => selectPaymentCustomer(customer));
+            paymentCustomerResults.appendChild(row);
+        });
+
+        paymentCustomerResults.hidden = false;
+    }
+
+    function handlePaymentCustomerInput() {
+        const keyword = paymentCustomerInput.value.trim();
+        state.selectedCustomer = null;
+        state.selectedSale = null;
+        paymentCustomerLabel.textContent = "고객을 선택하세요.";
+        paymentButton.disabled = true;
+        updatePaymentDue(null, "선택 기준 미수금");
+        renderPaymentSalesOptions([]);
+        clearTimeout(state.paymentCustomerSearchTimer);
+
+        if (!keyword) {
+            paymentCustomerResults.hidden = true;
+            paymentCustomerResults.innerHTML = "";
+            return;
+        }
+
+        state.paymentCustomerSearchTimer = setTimeout(async () => {
+            try {
+                renderPaymentCustomerResults(await searchCustomers(keyword));
+            } catch (error) {
+                paymentCustomerResults.innerHTML = `<button type="button" class="customer-result-row"><span>${error.message}</span></button>`;
+                paymentCustomerResults.hidden = false;
+            }
+        }, 180);
+    }
+
+    async function selectPaymentCustomer(customer) {
+        state.selectedCustomer = customer;
+        state.selectedSale = null;
+        customerInput.value = customer.name;
+        customerClear.hidden = false;
+        paymentCustomerInput.value = customer.name;
+        paymentCustomerLabel.textContent = customer.name;
+        paymentCustomerResults.hidden = true;
+        paymentCustomerResults.innerHTML = "";
+        await refreshCustomerAr();
+        await populatePaymentSalesOptions(customer.id);
+    }
+
+    async function populatePaymentSalesOptions(customerId) {
+        const sales = await fetchCreditSales(customerId);
+        state.paymentSales = sales.filter((sale) => sale.paymentType === "CREDIT");
+        renderPaymentSalesOptions(state.paymentSales);
+        await updatePaymentDueForSelection();
+    }
+
+    function renderPaymentSalesOptions(sales) {
+        paymentSalesOrder.innerHTML = `<option value="">고객 전체 수금</option>`;
+        state.selectedSale = null;
+        clearSalesOrderButton.disabled = true;
+
+        sales.forEach((sale) => {
+            const option = document.createElement("option");
+            option.value = String(sale.salesOrderId);
+            option.textContent = `전표 ${sale.salesOrderId} · ${sale.salesDate || ""} · ${sale.representativeProductName || ""} · ${money(sale.totalAmount)}`;
+            paymentSalesOrder.appendChild(option);
+        });
+    }
+
+    function handlePaymentSalesOrderChange() {
+        const salesOrderId = Number(paymentSalesOrder.value || 0);
+        state.selectedSale = state.paymentSales.find((sale) => Number(sale.salesOrderId) === salesOrderId) || null;
+        clearSalesOrderButton.disabled = !state.selectedSale;
+        updatePaymentDueForSelection();
+    }
+
+    function updatePaymentDue(amount, label) {
+        paymentDueLabel.textContent = label || "선택 기준 미수금";
+        paymentDueAmount.textContent = amount == null ? "0" : money(amount);
+    }
+
+    async function updatePaymentDueForSelection() {
+        if (!state.selectedCustomer) {
+            updatePaymentDue(null, "선택 기준 미수금");
+            return;
+        }
+
+        if (!state.selectedSale) {
+            const balance = await fetchArBalance(state.selectedCustomer.id);
+            updatePaymentDue(balance, "고객 전체 미수금");
+            return;
+        }
+
+        const due = await calculateSalesOrderArBalance(state.selectedCustomer.id, state.selectedSale.salesOrderId);
+        updatePaymentDue(due, `전표 ${state.selectedSale.salesOrderId} 미수금`);
+    }
+
+    async function calculateSalesOrderArBalance(customerId, salesOrderId) {
+        const rows = await fetchLedgerRows(customerId, { ignoreDateRange: true });
+        return rows
+                .filter((row) => Number(row.salesOrderId) === Number(salesOrderId))
+                .reduce((sum, row) => sum + Number(row.arDelta || 0), 0);
     }
 
     async function registerPayment() {
@@ -464,6 +519,7 @@
         paymentMessage.textContent = "수금이 저장되었습니다.";
         clearSelectedSale();
         await refreshCustomerAr();
+        closePaymentModal();
     }
 
     customerInput.addEventListener("input", handleCustomerInput);
@@ -488,6 +544,15 @@
         });
     });
     clearSalesOrderButton.addEventListener("click", clearSelectedSale);
+    openPaymentModalButton.addEventListener("click", openPaymentModal);
+    paymentCustomerInput.addEventListener("input", handlePaymentCustomerInput);
+    paymentSalesOrder.addEventListener("change", handlePaymentSalesOrderChange);
+    closePaymentModalButtons.forEach((button) => button.addEventListener("click", closePaymentModal));
+    paymentModal.addEventListener("click", (event) => {
+        if (event.target === paymentModal) {
+            closePaymentModal();
+        }
+    });
     paymentButton.addEventListener("click", async () => {
         paymentMessage.textContent = "";
         try {
@@ -500,6 +565,9 @@
     document.addEventListener("click", (event) => {
         if (!customerResults.contains(event.target) && event.target !== customerInput) {
             customerResults.hidden = true;
+        }
+        if (!paymentCustomerResults.contains(event.target) && event.target !== paymentCustomerInput) {
+            paymentCustomerResults.hidden = true;
         }
     });
 

@@ -57,52 +57,8 @@
             <span>현재 미수금</span>
             <strong data-ar-current-balance>0</strong>
         </div>
+        <button type="button" class="primary-action" data-open-payment-modal>수금 등록</button>
         <p class="management-message" data-ar-message></p>
-    </section>
-
-    <section class="payment-panel ar-payment-panel" aria-label="수금 등록">
-        <div class="payment-panel-title">
-            <strong>수금 등록</strong>
-            <span data-payment-customer-label>고객을 선택하세요.</span>
-        </div>
-        <label>
-            연결전표
-            <input data-payment-sales-order readonly>
-        </label>
-        <label>
-            수금액
-            <input type="number" min="1" data-payment-amount>
-        </label>
-        <label>
-            수금방식
-            <select data-payment-method>
-                <option value="CASH">현금</option>
-                <option value="CARD">카드</option>
-                <option value="TRANSFER">통장입금</option>
-            </select>
-        </label>
-        <label class="wide">
-            메모
-            <input data-payment-memo placeholder="수금 메모">
-        </label>
-        <button type="button" data-clear-sales-order disabled>전표해제</button>
-        <button type="button" data-register-payment disabled>수금 저장</button>
-        <p class="management-message" data-payment-message></p>
-    </section>
-
-    <section class="history-table ar-sales-table" aria-label="외상 판매전표">
-        <div class="table-header">
-            <span>판매일자</span>
-            <span>전표번호</span>
-            <span>고객명</span>
-            <span>대표품명</span>
-            <span>수량</span>
-            <span>판매금액</span>
-            <span>상태</span>
-        </div>
-        <div class="ar-sales-rows" data-ar-sales-rows>
-            <div class="empty-table-state">고객을 선택하면 외상 전표가 표시됩니다.</div>
-        </div>
     </section>
 
     <section class="history-table ar-payment-history-table" aria-label="수금 이력">
@@ -118,24 +74,65 @@
             <div class="empty-table-state">수금 이력이 이곳에 표시됩니다.</div>
         </div>
     </section>
-
-    <section class="history-table ar-ledger-table" aria-label="미수 상세 내역">
-        <div class="table-header">
-            <span>일자</span>
-            <span>구분</span>
-            <span>전표</span>
-            <span>고객명</span>
-            <span>내용</span>
-            <span>증가</span>
-            <span>감소</span>
-            <span>잔액</span>
-            <span>메모</span>
-        </div>
-        <div class="ar-ledger-rows" data-ar-ledger-rows>
-            <div class="empty-table-state">미수 흐름 내역이 이곳에 표시됩니다.</div>
-        </div>
-    </section>
 </main>
+
+<div class="modal-backdrop" data-payment-modal hidden>
+    <section class="payment-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+        <header class="modal-header">
+            <div>
+                <p>AR02. 수금 등록</p>
+                <h2 id="paymentModalTitle">수금 등록</h2>
+            </div>
+            <button type="button" class="icon-close" data-close-payment-modal aria-label="닫기">×</button>
+        </header>
+        <div class="payment-modal-body">
+            <div class="payment-target-card">
+                <span>선택 고객</span>
+                <strong data-payment-customer-label>고객을 선택하세요.</strong>
+            </div>
+            <label class="payment-customer-picker wide">
+                고객명
+                <input type="search" data-payment-customer-search autocomplete="off" placeholder="수금할 고객 검색">
+                <div class="customer-results payment-customer-results" data-payment-customer-results hidden></div>
+            </label>
+            <label>
+                연결전표
+                <select data-payment-sales-order>
+                    <option value="">고객 전체 수금</option>
+                </select>
+            </label>
+            <label>
+                수금액
+                <input type="number" min="1" data-payment-amount>
+            </label>
+            <div class="payment-due-card">
+                <span data-payment-due-label>선택 기준 미수금</span>
+                <strong data-payment-due-amount>0</strong>
+            </div>
+            <label>
+                수금방식
+                <select data-payment-method>
+                    <option value="CASH">현금</option>
+                    <option value="CARD">카드</option>
+                    <option value="TRANSFER">통장입금</option>
+                </select>
+            </label>
+            <label class="wide">
+                메모
+                <input data-payment-memo placeholder="수금 메모">
+            </label>
+            <p class="management-message" data-payment-message></p>
+        </div>
+        <footer class="modal-footer">
+            <button type="button" data-clear-sales-order disabled>전표해제</button>
+            <div class="modal-footer-actions">
+                <button type="button" data-close-payment-modal>취소</button>
+                <button type="button" class="primary-action" data-register-payment disabled>수금 저장</button>
+            </div>
+        </footer>
+    </section>
+</div>
+
 <script src="/js/ar-management.js"></script>
 </body>
 </html>
