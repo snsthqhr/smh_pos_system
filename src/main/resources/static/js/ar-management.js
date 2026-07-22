@@ -307,10 +307,11 @@
         paymentCustomerLabel.textContent = state.selectedCustomer.name;
 
         const ledger = await fetchLedgerRows(state.selectedCustomer.id);
-        renderPaymentHistoryRows(ledger);
+        const creditSales = await fetchCreditSales(state.selectedCustomer.id);
+        renderPaymentHistoryRows(ledger, creditSales);
     }
 
-    function renderPaymentHistoryRows(rows) {
+    function renderPaymentHistoryRows(rows, sales = []) {
         paymentHistoryRows.innerHTML = "";
 
         // 고객을 특정한 경우에는 요청대로 수금일자/금액/수금 후 잔액 이력을 보여준다.
@@ -321,6 +322,7 @@
         }
 
         const balanceByPaymentRow = buildPaymentBalanceMap(rows);
+        const saleById = buildSaleMap(sales);
 
         paymentRows.forEach((row) => {
             const amount = Number(row.paymentAmount || 0) || Math.abs(Number(row.arDelta || 0));
@@ -330,13 +332,34 @@
             line.innerHTML = `
                 <span>${row.txDate || ""}</span>
                 <span title="${row.customerName || ""}">${row.customerName || ""}</span>
-                <span>${row.salesOrderId || "고객 전체"}</span>
+                <span title="${paymentConnectionLabel(row, saleById)}">${paymentConnectionLabel(row, saleById)}</span>
                 <span class="number">${money(amount)}</span>
                 <span class="number">${money(customerBalance)}</span>
                 <span title="${row.memo || ""}">${row.memo || ""}</span>
             `;
             paymentHistoryRows.appendChild(line);
         });
+    }
+
+    function buildSaleMap(sales) {
+        const saleById = new Map();
+        sales.forEach((sale) => {
+            saleById.set(Number(sale.salesOrderId), sale);
+        });
+        return saleById;
+    }
+
+    function paymentConnectionLabel(row, saleById) {
+        if (!row.salesOrderId) {
+            return "고객 전체 수금";
+        }
+
+        const sale = saleById.get(Number(row.salesOrderId));
+        if (!sale) {
+            return `전표 ${row.salesOrderId}`;
+        }
+
+        return `전표 ${sale.salesOrderId} · ${sale.salesDate || ""} · ${sale.representativeProductName || ""} · ${money(sale.totalAmount)}`;
     }
 
     function renderAllCustomerBalanceRows(rows) {

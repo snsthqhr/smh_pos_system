@@ -1112,7 +1112,7 @@ label {
 
 .ar-customer-band {
     display: grid;
-    grid-template-columns: minmax(320px, 1.4fr) 150px 150px 76px 220px 96px minmax(160px, 1fr);
+    grid-template-columns: minmax(320px, 1.4fr) 180px 180px 76px 220px 96px minmax(160px, 1fr);
     gap: 12px;
     align-items: center;
     padding: 12px 16px;
@@ -1126,6 +1126,10 @@ label {
 
 .ar-customer-band input {
     width: 100%;
+}
+
+.ar-customer-band input[type="date"] {
+    min-width: 150px;
 }
 
 .ar-customer-band > button {
@@ -1151,12 +1155,27 @@ label {
 
 .ar-payment-history-table .table-header,
 .ar-payment-history-row {
-    grid-template-columns: 1fr 1.4fr 1fr 1fr 1fr 2fr;
+    grid-template-columns: 170px 230px 520px 170px 190px 420px;
+    min-width: 1700px;
+}
+
+.ar-payment-history-table {
+    overflow-x: auto;
+}
+
+.ar-payment-history-table .table-header {
+    width: max-content;
+    min-width: 1700px;
+}
+
+.ar-payment-history-rows {
+    width: max-content;
+    min-width: 1700px;
 }
 
 .ar-payment-history-row {
     display: grid;
-    width: 100%;
+    width: max-content;
     min-height: 36px;
     border: 0;
     border-bottom: 1px solid var(--line);
