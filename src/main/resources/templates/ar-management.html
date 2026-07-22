@@ -60,25 +60,6 @@
         <p class="management-message" data-ar-message></p>
     </section>
 
-    <section class="ar-summary-band" aria-label="미수 흐름 요약">
-        <div>
-            <span>기간 외상 증가</span>
-            <strong data-ar-summary-increase>0</strong>
-        </div>
-        <div>
-            <span>기간 수금</span>
-            <strong data-ar-summary-payment>0</strong>
-        </div>
-        <div>
-            <span>기간 반품/차감</span>
-            <strong data-ar-summary-return>0</strong>
-        </div>
-        <div>
-            <span>조회 후 잔액</span>
-            <strong data-ar-summary-balance>0</strong>
-        </div>
-    </section>
-
     <section class="payment-panel ar-payment-panel" aria-label="수금 등록">
         <div class="payment-panel-title">
             <strong>수금 등록</strong>
@@ -121,6 +102,20 @@
         </div>
         <div class="ar-sales-rows" data-ar-sales-rows>
             <div class="empty-table-state">고객을 선택하면 외상 전표가 표시됩니다.</div>
+        </div>
+    </section>
+
+    <section class="history-table ar-payment-history-table" aria-label="수금 이력">
+        <div class="table-header">
+            <span>수금일자</span>
+            <span>고객명</span>
+            <span>연결전표</span>
+            <span>수금액</span>
+            <span>수금 후 잔액</span>
+            <span>메모</span>
+        </div>
+        <div class="ar-payment-history-rows" data-ar-payment-history-rows>
+            <div class="empty-table-state">수금 이력이 이곳에 표시됩니다.</div>
         </div>
     </section>
 

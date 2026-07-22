@@ -1131,34 +1131,14 @@ label {
     grid-template-columns: minmax(210px, 1.1fr) 150px 150px 150px minmax(220px, 1fr) 80px 90px minmax(160px, 0.8fr);
 }
 
-.ar-summary-band {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    padding: 10px 16px;
-    background: #f7f9f5;
-    border-bottom: 1px solid var(--line);
-}
-
-.ar-summary-band div {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 10px;
-    align-items: center;
-    min-height: 38px;
-    padding: 7px 12px;
-    border: 1px solid var(--line);
-    background: white;
-}
-
-.ar-summary-band strong {
-    text-align: right;
-    color: #24714a;
-}
-
 .ar-sales-table .table-header,
 .ar-sale-row {
     grid-template-columns: 1fr 0.8fr 1.4fr 2fr 0.8fr 1fr 1fr;
+}
+
+.ar-payment-history-table .table-header,
+.ar-payment-history-row {
+    grid-template-columns: 1fr 1.4fr 1fr 1fr 1fr 2fr;
 }
 
 .ar-ledger-table .table-header,
@@ -1167,6 +1147,7 @@ label {
 }
 
 .ar-sale-row,
+.ar-payment-history-row,
 .ar-ledger-row {
     display: grid;
     width: 100%;
@@ -1179,6 +1160,7 @@ label {
 
 .ar-sale-row:hover,
 .ar-sale-row.is-selected,
+.ar-payment-history-row:hover,
 .ar-ledger-row:hover {
     background: #fff8f3;
 }
@@ -1188,6 +1170,7 @@ label {
 }
 
 .ar-sale-row span,
+.ar-payment-history-row span,
 .ar-ledger-row span {
     display: flex;
     align-items: center;
@@ -1200,6 +1183,7 @@ label {
 }
 
 .ar-sale-row .number,
+.ar-payment-history-row .number,
 .ar-ledger-row .number {
     justify-content: flex-end;
 }

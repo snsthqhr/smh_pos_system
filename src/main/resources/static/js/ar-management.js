@@ -13,10 +13,6 @@
     const searchArButton = document.querySelector("[data-search-ar]");
     const currentBalance = document.querySelector("[data-ar-current-balance]");
     const arMessage = document.querySelector("[data-ar-message]");
-    const summaryIncrease = document.querySelector("[data-ar-summary-increase]");
-    const summaryPayment = document.querySelector("[data-ar-summary-payment]");
-    const summaryReturn = document.querySelector("[data-ar-summary-return]");
-    const summaryBalance = document.querySelector("[data-ar-summary-balance]");
     const paymentCustomerLabel = document.querySelector("[data-payment-customer-label]");
     const paymentSalesOrder = document.querySelector("[data-payment-sales-order]");
     const paymentAmount = document.querySelector("[data-payment-amount]");
@@ -26,6 +22,7 @@
     const paymentButton = document.querySelector("[data-register-payment]");
     const paymentMessage = document.querySelector("[data-payment-message]");
     const salesRows = document.querySelector("[data-ar-sales-rows]");
+    const paymentHistoryRows = document.querySelector("[data-ar-payment-history-rows]");
     const ledgerRows = document.querySelector("[data-ar-ledger-rows]");
 
     function money(value) {
@@ -190,6 +187,7 @@
         paymentButton.disabled = true;
         clearSelectedSale();
         salesRows.innerHTML = `<div class="empty-table-state">고객을 선택하면 외상 전표가 표시됩니다.</div>`;
+        renderPaymentHistoryRows([]);
         renderLedgerRows([]);
     }
 
@@ -209,9 +207,11 @@
             const sales = await fetchCreditSales(null);
             const ledger = await fetchLedgerRows(null);
             renderSalesRows(sales);
+            renderPaymentHistoryRows(ledger);
             renderLedgerRows(ledger);
         } catch (error) {
             salesRows.innerHTML = `<div class="empty-table-state">${error.message}</div>`;
+            renderPaymentHistoryRows([]);
             renderLedgerRows([]);
         }
     }
@@ -232,6 +232,7 @@
         const sales = await fetchCreditSales(state.selectedCustomer.id);
         const ledger = await fetchLedgerRows(state.selectedCustomer.id);
         renderSalesRows(sales);
+        renderPaymentHistoryRows(ledger);
         renderLedgerRows(ledger, balance);
     }
 
@@ -263,6 +264,34 @@
         });
     }
 
+    function renderPaymentHistoryRows(rows) {
+        paymentHistoryRows.innerHTML = "";
+
+        const paymentRows = rows.filter((row) => row.txType === "수금");
+        if (!paymentRows.length) {
+            paymentHistoryRows.innerHTML = `<div class="empty-table-state">조회된 수금 이력이 없습니다.</div>`;
+            return;
+        }
+
+        const balanceByPaymentRow = buildPaymentBalanceMap(rows);
+
+        paymentRows.forEach((row) => {
+            const amount = Number(row.paymentAmount || 0) || Math.abs(Number(row.arDelta || 0));
+            const customerBalance = balanceByPaymentRow.has(row) ? balanceByPaymentRow.get(row) : row.balance;
+            const line = document.createElement("div");
+            line.className = "ar-payment-history-row";
+            line.innerHTML = `
+                <span>${row.txDate || ""}</span>
+                <span title="${row.customerName || ""}">${row.customerName || ""}</span>
+                <span>${row.salesOrderId || "고객 전체"}</span>
+                <span class="number">${money(amount)}</span>
+                <span class="number">${money(customerBalance)}</span>
+                <span title="${row.memo || ""}">${row.memo || ""}</span>
+            `;
+            paymentHistoryRows.appendChild(line);
+        });
+    }
+
     function selectSale(sale) {
         if (!state.selectedCustomer && sale.customerId) {
             state.selectedCustomer = {
@@ -284,12 +313,10 @@
         });
     }
 
-    function renderLedgerRows(rows, currentArBalance) {
+    function renderLedgerRows(rows) {
         ledgerRows.innerHTML = "";
 
         const arRows = rows.filter((row) => Number(row.arDelta || 0) !== 0 || row.txType === "수금");
-        renderSummary(arRows, currentArBalance);
-
         if (!arRows.length) {
             ledgerRows.innerHTML = `<div class="empty-table-state">조회된 미수 흐름이 없습니다.</div>`;
             return;
@@ -316,29 +343,84 @@
         });
     }
 
-    function renderSummary(rows, currentArBalance) {
-        const increase = rows
-                .filter((row) => Number(row.arDelta || 0) > 0)
-                .reduce((sum, row) => sum + Number(row.arDelta || 0), 0);
-        const payment = rows
-                .filter((row) => row.txType === "수금")
-                .reduce((sum, row) => sum + Math.abs(Number(row.arDelta || 0)), 0);
-        const returns = rows
-                .filter((row) => row.txType === "반품")
-                .reduce((sum, row) => sum + Math.abs(Number(row.arDelta || 0)), 0);
-        const lastBalance = rows.length ? rows[rows.length - 1].balance : currentArBalance;
-
-        summaryIncrease.textContent = money(increase);
-        summaryPayment.textContent = money(payment);
-        summaryReturn.textContent = money(returns);
-        summaryBalance.textContent = lastBalance == null ? "0" : money(lastBalance);
-    }
-
     function ledgerTypeLabel(txType) {
         if (txType === "오더합계") {
             return "외상판매";
         }
         return txType || "";
+    }
+
+    function customerKey(row) {
+        if (row.customerId != null) {
+            return `id:${row.customerId}`;
+        }
+        return `name:${row.customerName || ""}`;
+    }
+
+    function txSortPriority(row) {
+        if (row.txType === "오더합계") {
+            return 1;
+        }
+        if (row.txType === "반품") {
+            return 2;
+        }
+        if (row.txType === "수금") {
+            return 3;
+        }
+        return 0;
+    }
+
+    function buildPaymentBalanceMap(rows) {
+        const balanceByPaymentRow = new Map();
+        const rowsByCustomer = new Map();
+
+        rows.forEach((row, index) => {
+            if (Number(row.arDelta || 0) === 0 && row.txType !== "수금") {
+                return;
+            }
+
+            const key = customerKey(row);
+            if (!rowsByCustomer.has(key)) {
+                rowsByCustomer.set(key, []);
+            }
+            rowsByCustomer.get(key).push({ row, index });
+        });
+
+        rowsByCustomer.forEach((entries) => {
+            const first = entries[0].row;
+            let balance = Number(first.balance || 0) - Number(first.arDelta || 0);
+
+            entries
+                    .slice()
+                    .sort((left, right) => {
+                        const leftDate = left.row.txDate || "";
+                        const rightDate = right.row.txDate || "";
+                        if (leftDate !== rightDate) {
+                            return leftDate.localeCompare(rightDate);
+                        }
+
+                        const leftOrderId = left.row.salesOrderId == null ? Number.MAX_SAFE_INTEGER : Number(left.row.salesOrderId);
+                        const rightOrderId = right.row.salesOrderId == null ? Number.MAX_SAFE_INTEGER : Number(right.row.salesOrderId);
+                        if (leftOrderId !== rightOrderId) {
+                            return leftOrderId - rightOrderId;
+                        }
+
+                        const priorityDiff = txSortPriority(left.row) - txSortPriority(right.row);
+                        if (priorityDiff !== 0) {
+                            return priorityDiff;
+                        }
+
+                        return left.index - right.index;
+                    })
+                    .forEach(({ row }) => {
+                        balance += Number(row.arDelta || 0);
+                        if (row.txType === "수금") {
+                            balanceByPaymentRow.set(row, balance);
+                        }
+                    });
+        });
+
+        return balanceByPaymentRow;
     }
 
     function clearSelectedSale() {
