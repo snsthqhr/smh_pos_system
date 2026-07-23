@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>삼화페인트 거래처 매출원장</title>
-    <link rel="stylesheet" href="/css/app-ui.css?v=20260723-1010">
+    <link rel="stylesheet" href="/css/app-ui.css?v=20260723-1235">
 </head>
 <body class="app-shell management-screen">
 <aside class="management-nav">
@@ -32,6 +32,8 @@
             <h1>거래처 매출원장</h1>
         </div>
         <div class="header-actions">
+            <button type="button" data-export-ledger-word>워드 추출</button>
+            <button type="button" data-export-ledger-hwp>한글 추출</button>
             <a href="/ar-management">미수금 관리</a>
             <a href="/sales-management">판매내역</a>
             <a href="/pos">POS 판매</a>
@@ -54,23 +56,50 @@
             <input type="date" data-ledger-end-date>
         </label>
         <button type="button" data-search-ledger>조회</button>
+        <button type="button" class="small-action" data-toggle-ledger-detail>조건 상세 조회</button>
         <p class="management-message" data-ledger-message></p>
+    </section>
+
+    <section class="ledger-detail-options" data-ledger-detail-options hidden aria-label="거래처 원장 상세 조건">
+        <div>
+            <strong>거래 구분</strong>
+            <label><input type="checkbox" data-ledger-type-filter value="판매(외상)" checked> 외상판매</label>
+            <label><input type="checkbox" data-ledger-type-filter value="판매(즉시결제)" checked> 즉시결제</label>
+            <label><input type="checkbox" data-ledger-type-filter value="수금" checked> 수금</label>
+            <label><input type="checkbox" data-ledger-type-filter value="반품" checked> 반품</label>
+            <label><input type="checkbox" data-ledger-type-filter value="오더합계"> 오더합계</label>
+        </div>
+        <div>
+            <strong>표시 항목</strong>
+            <label><input type="checkbox" data-ledger-column-filter value="date" checked> 일자</label>
+            <label><input type="checkbox" data-ledger-column-filter value="customer" checked> 고객명</label>
+            <label><input type="checkbox" data-ledger-column-filter value="type" checked> 구분</label>
+            <label><input type="checkbox" data-ledger-column-filter value="order" checked> 전표</label>
+            <label><input type="checkbox" data-ledger-column-filter value="product" checked> 품명/내용</label>
+            <label><input type="checkbox" data-ledger-column-filter value="quantity" checked> 수량</label>
+            <label><input type="checkbox" data-ledger-column-filter value="unitPrice" checked> 단가</label>
+            <label><input type="checkbox" data-ledger-column-filter value="sale" checked> 판매금액</label>
+            <label><input type="checkbox" data-ledger-column-filter value="payment" checked> 수금액</label>
+            <label><input type="checkbox" data-ledger-column-filter value="delta" checked> 미수증감</label>
+            <label><input type="checkbox" data-ledger-column-filter value="balance" checked> 잔액</label>
+            <label><input type="checkbox" data-ledger-column-filter value="memo" checked> 메모</label>
+        </div>
     </section>
 
     <section class="ledger-table" aria-label="거래처 원장">
         <div class="table-header">
-            <span>일자</span>
-            <span>고객명</span>
-            <span>구분</span>
-            <span>전표</span>
-            <span>품명/내용</span>
-            <span>수량</span>
-            <span>단가</span>
-            <span>판매금액</span>
-            <span>수금액</span>
-            <span>미수증감</span>
-            <span>잔액</span>
-            <span>메모</span>
+            <span data-col="date">일자</span>
+            <span data-col="customer">고객명</span>
+            <span data-col="type">구분</span>
+            <span data-col="order">전표</span>
+            <span data-col="product">품명/내용</span>
+            <span data-col="quantity">수량</span>
+            <span data-col="unitPrice">단가</span>
+            <span data-col="sale">판매금액</span>
+            <span data-col="payment">수금액</span>
+            <span data-col="delta">미수증감</span>
+            <span data-col="balance">잔액</span>
+            <span data-col="memo">메모</span>
         </div>
         <div class="ledger-rows" data-ledger-rows>
             <div class="empty-table-state">조회 조건을 입력하고 거래처 원장을 불러오세요.</div>
@@ -78,6 +107,6 @@
     </section>
 </main>
 
-<script src="/js/ar-ledger.js?v=20260723-1010"></script>
+<script src="/js/ar-ledger.js?v=20260723-1235"></script>
 </body>
 </html>

@@ -2,7 +2,8 @@
     const state = {
         selectedCustomer: null,
         customerSearchTimer: null,
-        customerActiveIndex: -1
+        customerActiveIndex: -1,
+        rows: []
     };
 
     const customerInput = document.querySelector("[data-ledger-customer-search]");
@@ -11,11 +12,43 @@
     const startDateInput = document.querySelector("[data-ledger-start-date]");
     const endDateInput = document.querySelector("[data-ledger-end-date]");
     const searchButton = document.querySelector("[data-search-ledger]");
+    const exportWordButton = document.querySelector("[data-export-ledger-word]");
+    const exportHwpButton = document.querySelector("[data-export-ledger-hwp]");
+    const detailToggleButton = document.querySelector("[data-toggle-ledger-detail]");
+    const detailOptions = document.querySelector("[data-ledger-detail-options]");
+    const typeFilters = document.querySelectorAll("[data-ledger-type-filter]");
+    const columnFilters = document.querySelectorAll("[data-ledger-column-filter]");
     const message = document.querySelector("[data-ledger-message]");
     const ledgerRows = document.querySelector("[data-ledger-rows]");
+    const ledgerTable = document.querySelector(".ledger-table");
+    const ledgerHeader = document.querySelector(".ledger-table .table-header");
+
+    const columnWidths = {
+        date: "92px",
+        customer: "112px",
+        type: "96px",
+        order: "54px",
+        product: "minmax(240px, 1.7fr)",
+        quantity: "54px",
+        unitPrice: "82px",
+        sale: "102px",
+        payment: "102px",
+        delta: "98px",
+        balance: "102px",
+        memo: "minmax(120px, 0.7fr)"
+    };
 
     function money(value) {
         return Number(value || 0).toLocaleString("ko-KR");
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
     }
 
     function todayString() {
@@ -189,39 +222,224 @@
 
     function renderRows(rows) {
         ledgerRows.innerHTML = "";
-        if (!rows.length) {
+        const visibleRows = filterRows(rows);
+        if (!visibleRows.length) {
             ledgerRows.innerHTML = `<div class="empty-table-state">조회된 원장 내역이 없습니다.</div>`;
+            applyColumnVisibility();
             return;
         }
 
-        rows.forEach((row) => {
+        visibleRows.forEach((row) => {
             const element = document.createElement("div");
             element.className = `ledger-row ${row.summaryRow ? "is-summary" : ""}`;
             element.innerHTML = `
-                <span>${row.txDate || ""}</span>
-                <span title="${row.customerName || ""}">${row.customerName || ""}</span>
-                <span>${row.txType || ""}</span>
-                <span>${row.salesOrderId || ""}</span>
-                <span title="${row.productName || ""}">${row.productName || ""}</span>
-                <span class="number">${row.quantity == null ? "" : money(row.quantity)}</span>
-                <span class="number">${row.unitPrice == null ? "" : money(row.unitPrice)}</span>
-                <span class="number">${money(row.saleAmount)}</span>
-                <span class="number">${money(row.paymentAmount)}</span>
-                <span class="number">${money(row.arDelta)}</span>
-                <span class="number strong">${money(row.balance)}</span>
-                <span title="${row.memo || ""}">${row.memo || ""}</span>
+                <span data-col="date">${row.txDate || ""}</span>
+                <span data-col="customer" title="${row.customerName || ""}">${row.customerName || ""}</span>
+                <span data-col="type">${row.txType || ""}</span>
+                <span data-col="order">${row.salesOrderId || ""}</span>
+                <span data-col="product" title="${row.productName || ""}">${row.productName || ""}</span>
+                <span data-col="quantity" class="number">${row.quantity == null ? "" : money(row.quantity)}</span>
+                <span data-col="unitPrice" class="number">${row.unitPrice == null ? "" : money(row.unitPrice)}</span>
+                <span data-col="sale" class="number">${money(row.saleAmount)}</span>
+                <span data-col="payment" class="number">${money(row.paymentAmount)}</span>
+                <span data-col="delta" class="number">${money(row.arDelta)}</span>
+                <span data-col="balance" class="number strong">${money(row.balance)}</span>
+                <span data-col="memo" title="${row.memo || ""}">${row.memo || ""}</span>
             `;
             ledgerRows.appendChild(element);
         });
+        ledgerRows.appendChild(createTotalRow(visibleRows));
+        applyColumnVisibility();
+    }
+
+    function createTotalRow(rows) {
+        const totals = rows.reduce((sum, row) => {
+            const isOrderSummary = Boolean(row.summaryRow);
+            const isPayment = row.txType === "수금";
+            const isReturn = row.txType === "반품";
+
+            // 판매금액은 오더합계 행만 사용해 품목행과 중복 합산되지 않게 한다.
+            if (isOrderSummary) {
+                sum.quantity += Number(row.quantity || 0);
+                sum.saleAmount += Number(row.saleAmount || 0);
+            }
+            if (isPayment) {
+                sum.paymentAmount += Number(row.paymentAmount || 0);
+            }
+            if (isOrderSummary || isPayment || isReturn) {
+                sum.arDelta += Number(row.arDelta || 0);
+            }
+            return sum;
+        }, {
+            quantity: 0,
+            saleAmount: 0,
+            paymentAmount: 0,
+            arDelta: 0
+        });
+
+        const lastBalance = rows.length ? Number(rows[rows.length - 1].balance || 0) : 0;
+        const element = document.createElement("div");
+        element.className = "ledger-row ledger-total-row";
+        element.innerHTML = `
+            <span data-col="date"></span>
+            <span data-col="customer"></span>
+            <span data-col="type">총계</span>
+            <span data-col="order"></span>
+            <span data-col="product">[조회 총계]</span>
+            <span data-col="quantity" class="number">${money(totals.quantity)}</span>
+            <span data-col="unitPrice" class="number"></span>
+            <span data-col="sale" class="number">${money(totals.saleAmount)}</span>
+            <span data-col="payment" class="number">${money(totals.paymentAmount)}</span>
+            <span data-col="delta" class="number">${money(totals.arDelta)}</span>
+            <span data-col="balance" class="number strong">${money(lastBalance)}</span>
+            <span data-col="memo"></span>
+        `;
+        return element;
+    }
+
+    function checkedValues(inputs) {
+        return new Set(Array.from(inputs)
+                .filter((input) => input.checked)
+                .map((input) => input.value));
+    }
+
+    function filterRows(rows) {
+        const visibleTypes = checkedValues(typeFilters);
+        return rows.filter((row) => visibleTypes.has(row.txType || ""));
+    }
+
+    function applyColumnVisibility() {
+        const visibleColumns = checkedValues(columnFilters);
+        document.querySelectorAll("[data-col]").forEach((cell) => {
+            cell.hidden = !visibleColumns.has(cell.dataset.col);
+        });
+
+        const templateColumns = Array.from(columnFilters)
+                .filter((input) => input.checked)
+                .map((input) => columnWidths[input.value])
+                .join(" ");
+
+        const nextTemplate = templateColumns || columnWidths.date;
+        ledgerHeader.style.gridTemplateColumns = nextTemplate;
+        ledgerRows.querySelectorAll(".ledger-row").forEach((row) => {
+            row.style.gridTemplateColumns = nextTemplate;
+        });
+
+        const activeColumns = Array.from(columnFilters).filter((input) => input.checked).length;
+        ledgerTable.classList.toggle("is-compact-columns", activeColumns <= 8);
+    }
+
+    function visibleCellTexts(container) {
+        return Array.from(container.querySelectorAll("[data-col]"))
+                .filter((cell) => !cell.hidden)
+                .map((cell) => cell.textContent.trim());
+    }
+
+    function buildExportRows() {
+        const headers = visibleCellTexts(ledgerHeader);
+        const rows = Array.from(ledgerRows.querySelectorAll(".ledger-row"))
+                .map((row) => ({
+                    summary: row.classList.contains("is-summary"),
+                    total: row.classList.contains("ledger-total-row"),
+                    cells: visibleCellTexts(row)
+                }))
+                .filter((row) => row.cells.length);
+
+        return { headers, rows };
+    }
+
+    function documentDateTime() {
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, "0");
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    function safeFilePart(value) {
+        return String(value || "전체")
+                .trim()
+                .replace(/[\\/:*?"<>|]/g, "")
+                .replace(/\s+/g, "_")
+                .slice(0, 30) || "전체";
+    }
+
+    function buildLedgerExportHtml() {
+        const { headers, rows } = buildExportRows();
+        if (!headers.length || !rows.length) {
+            throw new Error("추출할 원장 내역이 없습니다. 먼저 조회해 주세요.");
+        }
+
+        const customerName = customerInput.value.trim() || "전체 고객";
+        const periodText = `${startDateInput.value || "-"} ~ ${endDateInput.value || "-"}`;
+        const headerCells = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
+        const bodyRows = rows.map((row) => {
+            const className = row.total ? "total-row" : (row.summary ? "summary-row" : "");
+            const cells = row.cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("");
+            return `<tr class="${className}">${cells}</tr>`;
+        }).join("");
+
+        return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>거래처 원장</title>
+<style>
+@page { size: A4 landscape; margin: 12mm; }
+body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #222; }
+h1 { margin: 0 0 10px; text-align: center; font-size: 22px; }
+.meta { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 10px; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10px; page-break-inside: auto; }
+thead { display: table-header-group; }
+tfoot { display: table-footer-group; }
+tr { page-break-inside: avoid; page-break-after: auto; }
+th, td { border: 1px solid #8d978f; padding: 4px 5px; word-break: break-all; vertical-align: middle; }
+th { background: #dfe8de; font-weight: 700; text-align: center; }
+td { text-align: left; }
+td:nth-child(n+6) { text-align: right; }
+.summary-row { background: #fff8f3; font-weight: 700; }
+.total-row { background: #e7eee4; font-weight: 800; }
+</style>
+</head>
+<body>
+<h1>거래처 원장</h1>
+<div class="meta">
+    <span>고객명: ${escapeHtml(customerName)}</span>
+    <span>조회기간: ${escapeHtml(periodText)}</span>
+    <span>추출일시: ${escapeHtml(documentDateTime())}</span>
+</div>
+<table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+</table>
+</body>
+</html>`;
+    }
+
+    function downloadLedgerExport(extension, mimeType) {
+        try {
+            const html = buildLedgerExportHtml();
+            const customerName = safeFilePart(customerInput.value.trim() || "전체고객");
+            const today = todayString().replace(/-/g, "");
+            const blob = new Blob(["\ufeff", html], { type: `${mimeType};charset=utf-8` });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `거래처원장_${customerName}_${today}.${extension}`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            alert(error.message);
+        }
     }
 
     async function searchLedger() {
         message.textContent = "";
         ledgerRows.innerHTML = `<div class="empty-table-state">거래처 원장을 불러오는 중입니다.</div>`;
-        const rows = await fetchLedgerRows();
-        renderRows(rows);
+        state.rows = await fetchLedgerRows();
+        renderRows(state.rows);
         const target = customerInput.value.trim() ? customerInput.value.trim() : "전체 고객";
-        message.textContent = `${target} 원장 ${rows.length}건을 조회했습니다.`;
+        message.textContent = `${target} 원장 ${state.rows.length}건을 조회했습니다.`;
     }
 
     function bindEvents() {
@@ -231,6 +449,22 @@
             } catch (error) {
                 message.textContent = error.message;
             }
+        });
+
+        detailToggleButton.addEventListener("click", () => {
+            detailOptions.hidden = !detailOptions.hidden;
+        });
+
+        exportWordButton.addEventListener("click", () => {
+            downloadLedgerExport("doc", "application/msword");
+        });
+
+        exportHwpButton.addEventListener("click", () => {
+            downloadLedgerExport("hwp", "application/x-hwp");
+        });
+
+        [...typeFilters, ...columnFilters].forEach((input) => {
+            input.addEventListener("change", () => renderRows(state.rows));
         });
 
         [startDateInput, endDateInput].forEach((input) => {
