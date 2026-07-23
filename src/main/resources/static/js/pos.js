@@ -19,10 +19,12 @@
         activeName: "실리콘",
         saleItems: [],
         selectedCustomer: null,
+        generalCustomer: null,
         selectedJobSite: null,
         searchTimer: null,
         customerSearchTimer: null,
-        jobSiteSearchTimer: null
+        jobSiteSearchTimer: null,
+        jobSiteActiveIndex: -1
     };
 
     const categoryWrap = document.querySelector("[data-favorite-categories]");
@@ -198,12 +200,41 @@
         if (category) {
             params.set("category", category);
         }
+        const priceCustomer = await getPriceCustomerForSearch();
+        if (priceCustomer) {
+            params.set("customerId", priceCustomer.id);
+        }
+        if (state.selectedJobSite) {
+            params.set("jobSiteId", state.selectedJobSite.id);
+        }
 
         const response = await fetch(`/api/products?${params.toString()}`);
         if (!response.ok) {
             throw new Error("상품 검색에 실패했습니다.");
         }
         return response.json();
+    }
+
+    async function getPriceCustomerForSearch() {
+        if (state.selectedCustomer) {
+            return state.selectedCustomer;
+        }
+        if (customerSearchInput.value.trim()) {
+            return null;
+        }
+        return ensureGeneralCustomer();
+    }
+
+    async function ensureGeneralCustomer() {
+        if (state.generalCustomer) {
+            return state.generalCustomer;
+        }
+
+        const customers = await searchCustomers("일반");
+        const exactCustomer = uniqueCustomersByName(customers)
+                .find((customer) => normalizeName(customer.name) === normalizeName("일반"));
+        state.generalCustomer = exactCustomer || await createCustomer("일반");
+        return state.generalCustomer;
     }
 
     function renderProductResults(products) {
@@ -269,10 +300,10 @@
                 <span title="${item.productName}">${item.productName}</span>
                 <span></span>
                 <span>${item.unit || item.variant || ""}</span>
-                <span class="number">${money(item.salePrice)}</span>
+                <input type="number" min="0" class="line-price-input" value="${Number(item.salePrice || 0)}" data-unit-price="${item.id}">
                 <div class="qty-control">
                     <button type="button" data-qty-minus="${item.id}">-</button>
-                    <strong>${item.quantity}</strong>
+                    <input type="number" min="0" step="1" value="${Number(item.quantity || 1)}" data-qty-input="${item.id}">
                     <button type="button" data-qty-plus="${item.id}">+</button>
                 </div>
                 <span class="number">${money(amount)}</span>
@@ -325,6 +356,33 @@
         renderSaleLines();
     }
 
+    function setQuantity(productId, value) {
+        const item = state.saleItems.find((saleItem) => Number(saleItem.id) === Number(productId));
+        if (!item) {
+            return;
+        }
+
+        const quantity = Math.floor(Number(value || 0));
+        if (quantity <= 0) {
+            removeSaleItem(productId);
+            return;
+        }
+
+        item.quantity = quantity;
+        renderSaleLines();
+    }
+
+    function changeUnitPrice(productId, value) {
+        const item = state.saleItems.find((saleItem) => Number(saleItem.id) === Number(productId));
+        if (!item) {
+            return;
+        }
+
+        const unitPrice = Number(value || 0);
+        item.salePrice = unitPrice < 0 ? 0 : unitPrice;
+        renderSaleLines();
+    }
+
     function removeSaleItem(productId) {
         state.saleItems = state.saleItems.filter((item) => Number(item.id) !== Number(productId));
         renderSaleLines();
@@ -334,6 +392,17 @@
         state.saleItems = [];
         saleSaveMessage.textContent = "";
         saleSaveMessage.className = "sale-save-message";
+        renderSaleLines();
+    }
+
+    function resetSaleFormAfterSave() {
+        state.saleItems = [];
+        saleMemo.value = "";
+        productSearchInput.value = "";
+        taxPolicy.checked = false;
+        pricePolicy.checked = false;
+        renderProductResults([]);
+        clearCustomer();
         renderSaleLines();
     }
 
@@ -462,6 +531,7 @@
         selectedJobSiteBadge.textContent = `선택된 현장: ${jobSite.name}`;
         jobSiteResults.hidden = true;
         jobSiteResults.innerHTML = "";
+        state.jobSiteActiveIndex = -1;
     }
 
     function clearJobSite() {
@@ -475,10 +545,37 @@
         selectedJobSiteBadge.textContent = "";
         jobSiteResults.hidden = true;
         jobSiteResults.innerHTML = "";
+        state.jobSiteActiveIndex = -1;
+    }
+
+    function setActiveJobSiteRow(index) {
+        const rows = Array.from(jobSiteResults.querySelectorAll(".customer-result-row:not(:disabled)"));
+        if (rows.length === 0) {
+            state.jobSiteActiveIndex = -1;
+            return;
+        }
+
+        const nextIndex = (index + rows.length) % rows.length;
+        rows.forEach((row, rowIndex) => {
+            row.classList.toggle("is-active", rowIndex === nextIndex);
+        });
+        state.jobSiteActiveIndex = nextIndex;
+        rows[nextIndex].scrollIntoView({ block: "nearest" });
+    }
+
+    function activateJobSiteRow() {
+        const rows = Array.from(jobSiteResults.querySelectorAll(".customer-result-row:not(:disabled)"));
+        if (rows.length === 0 || state.jobSiteActiveIndex < 0) {
+            return false;
+        }
+
+        rows[state.jobSiteActiveIndex].click();
+        return true;
     }
 
     function renderJobSiteResults(jobSites, keyword) {
         jobSiteResults.innerHTML = "";
+        state.jobSiteActiveIndex = -1;
         const hasExactMatch = jobSites.some((jobSite) => normalizeName(jobSite.name) === normalizeName(keyword));
 
         jobSites.forEach((jobSite) => {
@@ -503,6 +600,7 @@
         }
 
         jobSiteResults.hidden = false;
+        setActiveJobSiteRow(0);
     }
 
     function handleJobSiteSearchInput() {
@@ -583,9 +681,13 @@
             return state.selectedCustomer;
         }
 
-        const name = customerSearchInput.value.trim();
-        if (!name) {
-            throw new Error("고객명을 입력하거나 선택하세요.");
+        // 고객명을 비워 둔 POS 판매는 불특정 일반 소비자 판매로 본다.
+        // 기존 고객 생성 흐름을 그대로 사용해서 "일반" 고객이 없으면 1회 생성하고, 있으면 재사용한다.
+        const name = customerSearchInput.value.trim() || "일반";
+        if (normalizeName(name) === normalizeName("일반")) {
+            const generalCustomer = await ensureGeneralCustomer();
+            selectCustomer(generalCustomer);
+            return generalCustomer;
         }
 
         const customers = await searchCustomers(name);
@@ -632,9 +734,9 @@
                 customerId: customer.id,
                 jobSiteId: state.selectedJobSite ? state.selectedJobSite.id : null,
                 paymentType,
-                taxPolicy: taxPolicy.value,
+                taxPolicy: taxPolicy.checked ? "ADD_VAT" : "NO_TAX",
                 memo: saleMemo.value.trim(),
-                priceApplyPolicy: pricePolicy.value,
+                priceApplyPolicy: pricePolicy.checked ? "ONE_TIME_ONLY" : "SAVE_PRICE",
                 items: state.saleItems.map((item) => ({
                     productId: item.id,
                     quantity: item.quantity,
@@ -656,13 +758,28 @@
             const saved = await response.json();
             saleSaveMessage.textContent = `판매 저장 완료: 전표 ${saved.salesOrderId}, 합계 ${money(saved.totalAmount)}원`;
             saleSaveMessage.className = "sale-save-message success";
-            state.saleItems = [];
-            saleMemo.value = "";
-            renderSaleLines();
-            await refreshArBalance(customer.id);
+            resetSaleFormAfterSave();
+            productSearchInput.focus();
         } catch (error) {
             saleSaveMessage.textContent = error.message;
         }
+    }
+
+    function showJobSiteSuggestions() {
+        if (!state.selectedCustomer || jobSiteResults.hidden === false) {
+            return;
+        }
+
+        clearTimeout(state.jobSiteSearchTimer);
+        state.jobSiteSearchTimer = setTimeout(async () => {
+            try {
+                const jobSites = await searchJobSites(jobSiteSearchInput.value.trim());
+                renderJobSiteResults(jobSites, jobSiteSearchInput.value.trim());
+            } catch (error) {
+                jobSiteResults.innerHTML = `<button type="button" class="customer-result-row" disabled><span>${error.message}</span></button>`;
+                jobSiteResults.hidden = false;
+            }
+        }, 80);
     }
 
     async function handleProductSearchInput() {
@@ -850,6 +967,8 @@
         const minusId = event.target.dataset.qtyMinus;
         const plusId = event.target.dataset.qtyPlus;
         const removeId = event.target.dataset.removeItem;
+        const unitPriceId = event.target.dataset.unitPrice;
+        const qtyInputId = event.target.dataset.qtyInput;
 
         if (minusId) {
             changeQuantity(minusId, -1);
@@ -857,8 +976,38 @@
         if (plusId) {
             changeQuantity(plusId, 1);
         }
+        if (unitPriceId) {
+            event.target.select();
+        }
+        if (qtyInputId) {
+            event.target.select();
+        }
         if (removeId) {
             removeSaleItem(removeId);
+        }
+    });
+    saleLines.addEventListener("change", (event) => {
+        const unitPriceId = event.target.dataset.unitPrice;
+        const qtyInputId = event.target.dataset.qtyInput;
+        if (unitPriceId) {
+            changeUnitPrice(unitPriceId, event.target.value);
+        }
+        if (qtyInputId) {
+            setQuantity(qtyInputId, event.target.value);
+        }
+    });
+    saleLines.addEventListener("keydown", (event) => {
+        const unitPriceId = event.target.dataset.unitPrice;
+        const qtyInputId = event.target.dataset.qtyInput;
+        if (unitPriceId && event.key === "Enter") {
+            event.preventDefault();
+            changeUnitPrice(unitPriceId, event.target.value);
+            productSearchInput.focus();
+        }
+        if (qtyInputId && event.key === "Enter") {
+            event.preventDefault();
+            setQuantity(qtyInputId, event.target.value);
+            productSearchInput.focus();
         }
     });
     clearSaleButton.addEventListener("click", clearSaleItems);
@@ -876,8 +1025,27 @@
     customerClear.addEventListener("click", clearCustomer);
     jobSiteSearchInput.addEventListener("input", handleJobSiteSearchInput);
     jobSiteSearchInput.addEventListener("keydown", async (event) => {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (jobSiteResults.hidden) {
+                showJobSiteSuggestions();
+                return;
+            }
+            setActiveJobSiteRow(state.jobSiteActiveIndex + 1);
+        }
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveJobSiteRow(state.jobSiteActiveIndex - 1);
+        }
+        if (event.key === "Escape") {
+            jobSiteResults.hidden = true;
+            state.jobSiteActiveIndex = -1;
+        }
         if (event.key === "Enter") {
             event.preventDefault();
+            if (!jobSiteResults.hidden && activateJobSiteRow()) {
+                return;
+            }
             const keyword = jobSiteSearchInput.value.trim();
             if (keyword && !state.selectedJobSite) {
                 const jobSite = await createJobSite(keyword);
@@ -885,6 +1053,7 @@
             }
         }
     });
+    jobSiteSearchInput.addEventListener("focus", showJobSiteSuggestions);
     jobSiteClear.addEventListener("click", clearJobSite);
     document.addEventListener("click", (event) => {
         if (!customerResults.contains(event.target) && event.target !== customerSearchInput) {
@@ -926,6 +1095,9 @@
     });
     document.querySelector("[data-open-ar-management]").addEventListener("click", () => {
         window.location.href = "/ar-management";
+    });
+    document.querySelector("[data-open-sales-management]").addEventListener("click", () => {
+        window.open("/sales-management", "_blank", "noopener");
     });
 
     renderFavorites();

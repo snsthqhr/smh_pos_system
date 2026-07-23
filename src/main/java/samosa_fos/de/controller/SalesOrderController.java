@@ -8,6 +8,7 @@ import samosa_fos.de.domain.SalesOrder;
 import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderResponse;
 import samosa_fos.de.dto.sales.UpdateSalesOrderRequest;
+import samosa_fos.de.service.SalesOrderCancelService;
 import samosa_fos.de.service.SalesOrderService;
 import samosa_fos.de.service.SalesOrderUpdateService;
 
@@ -17,11 +18,14 @@ public class SalesOrderController {
 
     private final SalesOrderService salesOrderService;
     private final SalesOrderUpdateService salesOrderUpdateService;
+    private final SalesOrderCancelService salesOrderCancelService;
 
     public SalesOrderController(SalesOrderService salesOrderService,
-                                SalesOrderUpdateService salesOrderUpdateService) {
+                                SalesOrderUpdateService salesOrderUpdateService,
+                                SalesOrderCancelService salesOrderCancelService) {
         this.salesOrderService = salesOrderService;
         this.salesOrderUpdateService = salesOrderUpdateService;
+        this.salesOrderCancelService = salesOrderCancelService;
     }
 
     @PostMapping
@@ -40,6 +44,11 @@ public class SalesOrderController {
         }
         request.setSalesOrderId(salesOrderId);
         salesOrderUpdateService.updateSalesOrder(request);
+    }
+
+    @PostMapping("/{salesOrderId}/cancel")
+    public void cancelSalesOrder(@PathVariable Long salesOrderId) {
+        salesOrderCancelService.cancelSalesOrder(salesOrderId);
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

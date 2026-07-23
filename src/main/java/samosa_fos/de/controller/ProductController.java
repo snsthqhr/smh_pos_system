@@ -3,9 +3,11 @@ package samosa_fos.de.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import samosa_fos.de.domain.CustomerPrice;
 import samosa_fos.de.domain.Product;
 import samosa_fos.de.dto.product.CreateProductRequest;
 import samosa_fos.de.dto.product.ProductResponse;
+import samosa_fos.de.repository.CustomerPriceRepository;
 import samosa_fos.de.repository.ProductRepository;
 
 import java.util.Comparator;
@@ -17,14 +19,19 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ProductController {
 
     private final ProductRepository productRepository;
+    private final CustomerPriceRepository customerPriceRepository;
 
-    public ProductController(ProductRepository productRepository) {
+    public ProductController(ProductRepository productRepository,
+                             CustomerPriceRepository customerPriceRepository) {
         this.productRepository = productRepository;
+        this.customerPriceRepository = customerPriceRepository;
     }
 
     @GetMapping
     public List<ProductResponse> searchProducts(@RequestParam(required = false) String keyword,
-                                                @RequestParam(required = false) String category) {
+                                                @RequestParam(required = false) String category,
+                                                @RequestParam(required = false) Long customerId,
+                                                @RequestParam(required = false) Long jobSiteId) {
 
         String normalizedKeyword = normalize(keyword);
         String normalizedCategory = normalize(category);
@@ -45,7 +52,7 @@ public class ProductController {
         }
 
         return products.stream()
-                .map(ProductResponse::new)
+                .map(product -> new ProductResponse(product, resolveSalePrice(product, customerId, jobSiteId)))
                 .toList();
     }
 
@@ -102,6 +109,26 @@ public class ProductController {
 
     private Integer defaultNumber(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private Integer resolveSalePrice(Product product, Long customerId, Long jobSiteId) {
+        if (customerId == null) {
+            return product.getSalePrice();
+        }
+
+        if (jobSiteId != null) {
+            CustomerPrice jobSitePrice = customerPriceRepository
+                    .findByCustomerIdAndProductIdAndJobSiteIdAndActiveTrue(customerId, product.getId(), jobSiteId)
+                    .orElse(null);
+            if (jobSitePrice != null) {
+                return jobSitePrice.getPrice();
+            }
+        }
+
+        return customerPriceRepository
+                .findByCustomerIdAndProductIdAndJobSiteIdIsNullAndActiveTrue(customerId, product.getId())
+                .map(CustomerPrice::getPrice)
+                .orElse(product.getSalePrice());
     }
 
     private String generateProductCode() {

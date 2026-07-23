@@ -19,6 +19,10 @@ public class ProductResponse {
     private final Integer stockQuantity;
 
     public ProductResponse(Product product) {
+        this(product, product.getSalePrice());
+    }
+
+    public ProductResponse(Product product, Integer salePrice) {
         this.id = product.getId();
         this.code = product.getCode();
         this.productName = product.getProductName();
@@ -28,7 +32,7 @@ public class ProductResponse {
         this.brand = product.getBrand();
         this.category = product.getCategory();
         this.costPrice = product.getCostPrice();
-        this.salePrice = product.getSalePrice();
+        this.salePrice = salePrice;
         this.stockQuantity = product.getStockQuantity();
     }
 }

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>삼화페인트 POS</title>
-    <link rel="stylesheet" href="/css/app-ui.css">
+    <link rel="stylesheet" href="/css/app-ui.css?v=20260722-1755">
 </head>
 <body class="app-shell pos-screen">
 <header class="top-bar">
@@ -18,7 +18,7 @@
         <span>POS NO : 1</span>
     </div>
     <nav class="top-actions" aria-label="상단 메뉴">
-        <a href="/sales-management">판매관리</a>
+        <a href="/sales-management" target="_blank" rel="noopener">판매관리</a>
         <button type="button">공지사항</button>
         <button type="button">원격지원</button>
     </nav>
@@ -29,17 +29,17 @@
         <div class="customer-strip">
             <label>
                 고객명
-                <input type="search" placeholder="거래처명 검색" data-customer-search-input>
+                <input type="search" placeholder="비워두면 일반 고객" data-customer-search-input>
             </label>
             <button type="button" class="customer-clear" data-customer-clear hidden>선택해제</button>
-            <label>
+            <label class="jobsite-search-control">
                 현장
                 <input type="search" placeholder="현장 선택" data-jobsite-search-input>
             </label>
             <button type="button" class="customer-clear" data-jobsite-clear hidden>현장해제</button>
-            <label>
+            <label class="ar-balance-control">
                 미수금
-                <input class="money-input" value="0" readonly data-ar-balance-input>
+                <input class="money-input" value="0" readonly tabindex="-1" data-ar-balance-input>
             </label>
             <div class="customer-results" data-customer-results hidden></div>
             <div class="customer-results jobsite-results" data-jobsite-results hidden></div>
@@ -48,19 +48,15 @@
         </div>
 
         <div class="sale-option-strip">
-            <label>
+            <label class="checkbox-control">
                 세금
-                <select data-tax-policy>
-                    <option value="ADD_VAT">부가세 별도</option>
-                    <option value="NO_TAX">면세/부가세 없음</option>
-                </select>
+                <input type="checkbox" data-tax-policy>
+                <span>부가세 별도</span>
             </label>
-            <label>
+            <label class="checkbox-control">
                 가격반영
-                <select data-price-policy>
-                    <option value="SAVE_PRICE">고객/현장가 저장</option>
-                    <option value="ONE_TIME_ONLY">이번만 적용</option>
-                </select>
+                <input type="checkbox" data-price-policy>
+                <span>이번만 적용</span>
             </label>
             <label class="memo-control">
                 메모
@@ -174,7 +170,7 @@
             <button type="button">거래명세표</button>
             <button type="button">견적서</button>
             <button type="button" data-favorite-register>즐겨찾기 등록</button>
-            <button type="button">판매관리 바로가기</button>
+            <button type="button" data-open-sales-management>판매관리 바로가기</button>
         </div>
     </aside>
 </main>
@@ -316,6 +312,6 @@
         </form>
     </section>
 </div>
-<script src="/js/pos.js"></script>
+<script src="/js/pos.js?v=20260722-1735"></script>
 </body>
 </html>

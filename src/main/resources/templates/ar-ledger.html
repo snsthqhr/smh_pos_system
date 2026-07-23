@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>삼화페인트 거래처 매출원장</title>
+    <link rel="stylesheet" href="/css/app-ui.css?v=20260723-1010">
+</head>
+<body class="app-shell management-screen">
+<aside class="management-nav">
+    <div class="brand-mark vertical">
+        <strong>SP SAMHWA</strong>
+        <span>거래처 원장</span>
+    </div>
+    <nav aria-label="관리 메뉴">
+        <a href="/sales-management">판매내역 관리</a>
+        <a href="/ar-management">거래처 미수현황</a>
+        <a href="#">거래처 매출현황</a>
+        <a class="is-active" href="/ar-ledger">거래처 매출원장</a>
+        <a href="#">거래명세표 출력</a>
+        <a href="/ar-management">미수금 관리</a>
+        <a href="#">고객 관리</a>
+        <a href="#">상품 관리</a>
+        <a href="/pos">POS 판매 화면</a>
+    </nav>
+</aside>
+
+<main class="management-layout ledger-layout">
+    <header class="management-header">
+        <div>
+            <p>AR03. 거래처 매출원장</p>
+            <h1>거래처 매출원장</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/ar-management">미수금 관리</a>
+            <a href="/sales-management">판매내역</a>
+            <a href="/pos">POS 판매</a>
+        </div>
+    </header>
+
+    <section class="ledger-search-band" aria-label="거래처 원장 검색">
+        <label class="management-customer-search">
+            고객명
+            <input type="search" data-ledger-customer-search autocomplete="off" placeholder="비워두면 전체 고객">
+            <button type="button" class="customer-clear" data-ledger-customer-clear hidden>해제</button>
+            <div class="customer-results management-customer-results" data-ledger-customer-results hidden></div>
+        </label>
+        <label>
+            시작일
+            <input type="date" data-ledger-start-date>
+        </label>
+        <label>
+            종료일
+            <input type="date" data-ledger-end-date>
+        </label>
+        <button type="button" data-search-ledger>조회</button>
+        <p class="management-message" data-ledger-message></p>
+    </section>
+
+    <section class="ledger-table" aria-label="거래처 원장">
+        <div class="table-header">
+            <span>일자</span>
+            <span>고객명</span>
+            <span>구분</span>
+            <span>전표</span>
+            <span>품명/내용</span>
+            <span>수량</span>
+            <span>단가</span>
+            <span>판매금액</span>
+            <span>수금액</span>
+            <span>미수증감</span>
+            <span>잔액</span>
+            <span>메모</span>
+        </div>
+        <div class="ledger-rows" data-ledger-rows>
+            <div class="empty-table-state">조회 조건을 입력하고 거래처 원장을 불러오세요.</div>
+        </div>
+    </section>
+</main>
+
+<script src="/js/ar-ledger.js?v=20260723-1010"></script>
+</body>
+</html>

@@ -24,6 +24,9 @@ public interface ArTxRepository extends JpaRepository<ArTx, Long> {
     // 특정 전표와 연결된 미수금 원장 조회
     List<ArTx> findBySalesOrderId(Long salesOrderId);
 
+    // 전표 취소 시 활성 미수 흐름을 확인하고 비활성화하는 데 사용한다.
+    List<ArTx> findBySalesOrderIdAndActiveTrue(Long salesOrderId);
+
     // 특정 고객 + 거래유형 기준 조회
     List<ArTx> findByCustomerIdAndTxType(Long customerId, String txType);
 

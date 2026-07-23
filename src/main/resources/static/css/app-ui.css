@@ -134,7 +134,7 @@ label {
 .customer-strip {
     position: relative;
     display: grid;
-    grid-template-columns: 1.35fr 78px 1.25fr 78px 1fr;
+    grid-template-columns: minmax(300px, 1.35fr) 88px minmax(300px, 1.2fr) 88px minmax(180px, 0.58fr);
     gap: 10px;
     padding: 10px;
     border-bottom: 1px solid var(--line);
@@ -178,7 +178,7 @@ label {
 
 .jobsite-results {
     left: min(710px, 44%);
-    width: min(420px, calc(100vw - 760px));
+    width: clamp(320px, 32vw, 560px);
 }
 
 .customer-result-row {
@@ -209,7 +209,7 @@ label {
 
 .sale-option-strip {
     display: grid;
-    grid-template-columns: 180px 210px minmax(220px, 1fr) 260px;
+    grid-template-columns: 160px 170px minmax(220px, 1fr) 260px;
     gap: 10px;
     align-items: center;
     min-height: 44px;
@@ -221,6 +221,24 @@ label {
 .sale-option-strip select,
 .sale-option-strip input {
     width: 100%;
+}
+
+.checkbox-control {
+    justify-content: flex-start;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line-dark);
+    background: white;
+}
+
+.checkbox-control input {
+    width: 17px;
+    height: 17px;
+    padding: 0;
+}
+
+.checkbox-control span {
+    font-weight: 700;
 }
 
 .memo-control {
@@ -239,6 +257,34 @@ label {
 
 .customer-strip label input {
     flex: 1;
+}
+
+.jobsite-search-control {
+    min-width: 0;
+}
+
+.ar-balance-control {
+    justify-self: start;
+    width: 190px;
+    height: 30px;
+    gap: 6px;
+    padding: 0 7px;
+    border: 1px solid #b88b8b;
+    background: #fff7f4;
+    color: #7e3f3f;
+    font-weight: 700;
+}
+
+.ar-balance-control input {
+    width: 108px;
+    height: 26px;
+    padding: 0 8px;
+    border: 0;
+    color: #ad4848;
+    font-size: 18px;
+    font-weight: 800;
+    background: transparent;
+    pointer-events: none;
 }
 
 .money-input {
@@ -266,7 +312,7 @@ label {
 }
 
 .grid-header {
-    grid-template-columns: 2.2fr 0.8fr 0.7fr 0.9fr 0.7fr 1fr 0.7fr 0.8fr 0.7fr 0.9fr 1fr;
+    grid-template-columns: 2.2fr 0.8fr 0.7fr 0.9fr 0.95fr 1fr 0.7fr 0.8fr 0.7fr 0.9fr 1fr;
 }
 
 .table-header span,
@@ -300,7 +346,7 @@ label {
 
 .sale-line {
     display: grid;
-    grid-template-columns: 2.2fr 0.8fr 0.7fr 0.9fr 0.7fr 1fr 0.7fr 0.8fr 0.7fr 0.9fr 1fr;
+    grid-template-columns: 2.2fr 0.8fr 0.7fr 0.9fr 0.95fr 1fr 0.7fr 0.8fr 0.7fr 0.9fr 1fr;
     min-height: 36px;
     border-bottom: 1px solid var(--line);
     background: white;
@@ -321,9 +367,27 @@ label {
     justify-content: flex-end;
 }
 
+.line-price-input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0 8px;
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0;
+    text-align: right;
+    background: #fbfcfa;
+}
+
+.line-price-input:focus {
+    outline: 2px solid #9fbea4;
+    outline-offset: -2px;
+    background: white;
+}
+
 .qty-control {
     display: grid;
-    grid-template-columns: 24px 1fr 24px;
+    grid-template-columns: 26px minmax(38px, 1fr) 26px;
     align-items: center;
     gap: 3px;
     padding: 3px;
@@ -337,8 +401,32 @@ label {
     padding: 0;
 }
 
-.qty-control strong {
+.qty-control input {
+    width: 100%;
+    min-width: 38px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-weight: 700;
     text-align: center;
+    background: white;
+}
+
+.qty-control input:focus {
+    border-color: #9fbea4;
+    outline: 2px solid #9fbea4;
+    outline-offset: -2px;
+}
+
+.qty-control input::-webkit-outer-spin-button,
+.qty-control input::-webkit-inner-spin-button {
+    margin: 0;
+    appearance: none;
+}
+
+.qty-control input {
+    appearance: textfield;
 }
 
 .line-remove-button {
@@ -1268,6 +1356,83 @@ label {
 .payment-due-card span {
     color: var(--muted);
     font-size: 12px;
+}
+
+.ledger-search-band {
+    display: grid;
+    grid-template-columns: minmax(320px, 1.5fr) 180px 180px 78px minmax(220px, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+}
+
+.ledger-search-band .management-customer-search {
+    grid-template-columns: auto minmax(0, 1fr) 54px;
+}
+
+.ledger-search-band input {
+    width: 100%;
+}
+
+.ledger-search-band input[type="date"] {
+    min-width: 150px;
+}
+
+.ledger-search-band > button {
+    height: 30px;
+}
+
+.ledger-table {
+    overflow-x: auto;
+}
+
+.ledger-table .table-header,
+.ledger-row {
+    grid-template-columns: 130px 180px 130px 90px 360px 90px 120px 140px 140px 140px 140px 340px;
+    min-width: 2000px;
+}
+
+.ledger-table .table-header {
+    width: max-content;
+}
+
+.ledger-rows {
+    width: max-content;
+    min-width: 2000px;
+}
+
+.ledger-row {
+    display: grid;
+    width: max-content;
+    min-height: 36px;
+    border-bottom: 1px solid var(--line);
+    background: white;
+}
+
+.ledger-row.is-summary {
+    background: #fff8f3;
+    font-weight: 700;
+}
+
+.ledger-row span {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 8px;
+    border-right: 1px solid var(--line);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ledger-row .number {
+    justify-content: flex-end;
+}
+
+.ledger-row .strong {
+    color: var(--accent);
 }
 
 .payment-due-card strong {

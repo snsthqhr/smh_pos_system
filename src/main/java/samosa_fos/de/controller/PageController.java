@@ -20,4 +20,9 @@ public class PageController {
     public String arManagement() {
         return "ar-management";
     }
+
+    @GetMapping("/ar-ledger")
+    public String arLedger() {
+        return "ar-ledger";
+    }
 }

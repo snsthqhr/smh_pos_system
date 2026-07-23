@@ -19,6 +19,7 @@
     const historyRows = document.querySelector("[data-sales-history-rows]");
     const itemRows = document.querySelector("[data-sales-item-rows]");
     const saveButton = document.querySelector("[data-save-selected]");
+    const cancelButton = document.querySelector("[data-cancel-selected]");
     const statementButton = document.querySelector("[data-download-statement]");
 
     const detail = {
@@ -276,6 +277,7 @@
         detail.memo.readOnly = !sale.editable;
 
         saveButton.disabled = !sale.editable;
+        cancelButton.disabled = false;
         statementButton.disabled = false;
         renderItemRows();
         refreshCalculatedTotals();
@@ -292,6 +294,7 @@
         jobSiteResults.innerHTML = "";
         itemRows.innerHTML = `<div class="empty-table-state">판매 품목이 선택되면 이곳에서 수정합니다.</div>`;
         saveButton.disabled = true;
+        cancelButton.disabled = true;
         statementButton.disabled = true;
     }
 
@@ -425,6 +428,30 @@
         await searchSales();
     }
 
+    async function cancelSelectedSale() {
+        if (!state.selectedSale) {
+            return;
+        }
+
+        const ok = window.confirm(`전표 ${state.selectedSale.salesOrderId}번을 취소할까요?\n취소된 전표는 판매내역과 미수금 흐름에서 제외됩니다.`);
+        if (!ok) {
+            return;
+        }
+
+        const response = await fetch(`/api/sales-orders/${state.selectedSale.salesOrderId}/cancel`, {
+            method: "POST"
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || "전표 취소에 실패했습니다.");
+        }
+
+        message.textContent = "전표가 취소되었습니다.";
+        clearDetail();
+        await searchSales();
+    }
+
     function openStatement() {
         if (!state.selectedSale) {
             return;
@@ -466,6 +493,14 @@
             window.location.href = "/pos";
         });
         statementButton.addEventListener("click", openStatement);
+        cancelButton.addEventListener("click", async () => {
+            try {
+                await cancelSelectedSale();
+            } catch (error) {
+                message.textContent = error.message;
+                alert(error.message);
+            }
+        });
         saveButton.addEventListener("click", async () => {
             try {
                 await saveSelectedSale();
