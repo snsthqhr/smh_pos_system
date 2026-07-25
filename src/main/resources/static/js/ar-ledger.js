@@ -253,20 +253,23 @@
     }
 
     function createTotalRow(rows) {
+        const hasOrderSummary = rows.some((row) => Boolean(row.summaryRow));
         const totals = rows.reduce((sum, row) => {
             const isOrderSummary = Boolean(row.summaryRow);
+            const isCreditSaleLine = row.txType === "판매(외상)" && !isOrderSummary;
             const isPayment = row.txType === "수금";
             const isReturn = row.txType === "반품";
+            const shouldSumSale = hasOrderSummary ? isOrderSummary : isCreditSaleLine;
 
-            // 판매금액은 오더합계 행만 사용해 품목행과 중복 합산되지 않게 한다.
-            if (isOrderSummary) {
+            // 오더합계가 보이면 오더합계 기준, 숨겨져 있으면 현재 보이는 판매 품목행 기준으로 합산한다.
+            if (shouldSumSale) {
                 sum.quantity += Number(row.quantity || 0);
                 sum.saleAmount += Number(row.saleAmount || 0);
             }
             if (isPayment) {
                 sum.paymentAmount += Number(row.paymentAmount || 0);
             }
-            if (isOrderSummary || isPayment || isReturn) {
+            if (shouldSumSale || isPayment || isReturn) {
                 sum.arDelta += Number(row.arDelta || 0);
             }
             return sum;
