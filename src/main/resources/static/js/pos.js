@@ -70,6 +70,20 @@
     const summaryDiscount = document.querySelector("[data-summary-discount]");
     const clearSaleButton = document.querySelector("[data-clear-sale]");
     const arBalanceInput = document.querySelector("[data-ar-balance-input]");
+    const returnOpenButton = document.querySelector("[data-return-open]");
+    const returnModal = document.querySelector("[data-return-modal]");
+    const returnCloseButtons = document.querySelectorAll("[data-return-close]");
+
+
+    function openReturnModal() {
+        returnModal.hidden = false;
+    }
+
+    function closeReturnModal() {
+        returnModal.hidden = true;
+    }
+
+
 
     function loadGroups() {
         const saved = localStorage.getItem(storageKey);
@@ -1078,6 +1092,11 @@
         if (event.target === pickerModal) {
             closeProductPicker();
         }
+    });
+
+    returnOpenButton?.addEventListener("click", openReturnModal);
+    returnCloseButtons.forEach((button) => {
+        button.addEventListener("click", closeReturnModal);
     });
 
     document.querySelector("[data-product-create-open]").addEventListener("click", openCreateModal);

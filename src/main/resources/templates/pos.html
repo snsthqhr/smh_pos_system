@@ -313,7 +313,53 @@
     </section>
 </div>
 
-<div class="modal-backdrop"
+<div class="modal-backdrop" data-return-modal hidden>
+    <section class="return-model" role="dialog" aria-modal="true">
+        <header class="modal-header">
+            <div>
+                <p>RT01. 상품 반품</p>
+                <h2>반품 처리</h2>
+            </div>
+            <button type="button" data-return-close>x</button>
+        </header>
+
+        <div class="return-modal-body">
+            <section>
+                <h3>고객 / 전표 선택</h3>
+                <label>
+                    고객명
+                    <input type="search" data-return-customer-search placeholder="고객명 검색">
+                </label>
+
+                <label>
+                    전표
+                    <select data-return-sales-order>
+                        <option value="">외상판매 전표 선택</option>
+                    </select>
+                </label>
+            </section>
+
+            <section>
+                <h3>반품 품목</h3>
+                <div class="return-item-table">
+                    <div class="table-header">
+                        <span>품명</span>
+                        <span>판매수량</span>
+                        <span>기반품</span>
+                        <span>가능수량</span>
+                        <span>단가</span>
+                        <span>반품수량</span>
+                        <span>반품금액</span>
+                    </div>
+                    <div data-return-items>
+                        <div class="empty-table-state">전표를 선택하면 품목이 표시됩니다.</div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </section>
+</div>
 
 <script src="/js/pos.js?v=20260722-1735"></script>
 </body>

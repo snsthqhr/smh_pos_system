@@ -1611,3 +1611,53 @@ label {
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+
+.return-modal {
+    width: min(1180px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    background: var(--paper);
+    border: 1px solid var(--line-dark);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.return-modal-body {
+    overflow: auto;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.return-item-table .table-header,
+.return-item-row {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.5fr) 90px 90px 90px 110px 110px 130px;
+    min-height: 32px;
+}
+
+.return-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.return-summary > div {
+    border: 1px solid var(--line);
+    background: white;
+    padding: 10px;
+}
+
+.return-summary span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.return-summary strong {
+    display: block;
+    margin-top: 4px;
+    text-align: right;
+    font-size: 20px;
+    color: var(--accent);
+}
