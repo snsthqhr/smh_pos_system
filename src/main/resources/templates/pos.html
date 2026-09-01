@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>삼화페인트 POS</title>
-    <link rel="stylesheet" href="/css/app-ui.css?v=20260722-1755">
+    <link rel="stylesheet" href="/css/app-ui.css?v=20260901-return-search">
 </head>
 <body class="app-shell pos-screen">
 <header class="top-bar">
@@ -314,7 +314,7 @@
 </div>
 
 <div class="modal-backdrop" data-return-modal hidden>
-    <section class="return-model" role="dialog" aria-modal="true">
+    <section class="return-modal" role="dialog" aria-modal="true">
         <header class="modal-header">
             <div>
                 <p>RT01. 상품 반품</p>
@@ -329,6 +329,7 @@
                 <label>
                     고객명
                     <input type="search" data-return-customer-search placeholder="고객명 검색">
+                    <div class="customer-results return-customer-results" data-return-customer-results hidden></div>
                 </label>
 
                 <label>
@@ -385,6 +386,6 @@
     </section>
 </div>
 
-<script src="/js/pos.js?v=20260722-1735"></script>
+<script src="/js/pos.js?v=20260901-return-search"></script>
 </body>
 </html>

@@ -1629,11 +1629,72 @@ label {
     gap: 12px;
 }
 
+.return-modal-body section {
+    display: grid;
+    gap: 10px;
+}
+
+.return-modal-body h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.return-modal-body label {
+    position: relative;
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    align-items: center;
+    white-space: normal;
+}
+
+.return-modal-body input,
+.return-modal-body select {
+    width: 100%;
+}
+
+.return-customer-results {
+    left: 80px;
+    top: 34px;
+    width: calc(100% - 80px);
+}
+
 .return-item-table .table-header,
 .return-item-row {
     display: grid;
     grid-template-columns: minmax(240px, 1.5fr) 90px 90px 90px 110px 110px 130px;
     min-height: 32px;
+}
+
+.return-item-table .table-header {
+    background: var(--panel-strong);
+    border-top: 1px solid var(--line-dark);
+    border-bottom: 1px solid var(--line-dark);
+}
+
+.return-item-table .table-header span,
+.return-item-row span {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 8px;
+    border-right: 1px solid var(--line);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.return-item-row {
+    border-bottom: 1px solid var(--line);
+    background: white;
+}
+
+.return-item-row input {
+    height: 26px;
+    text-align: right;
+}
+
+.return-item-row .number {
+    justify-content: flex-end;
 }
 
 .return-summary {

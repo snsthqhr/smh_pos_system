@@ -24,7 +24,12 @@
         searchTimer: null,
         customerSearchTimer: null,
         jobSiteSearchTimer: null,
-        jobSiteActiveIndex: -1
+        jobSiteActiveIndex: -1,
+        returnCustomer: null,
+        returnSales: [],
+        selectedReturnOrder: null,
+        returnCurrentBalance: 0,
+        returnSearchTimer: null
     };
 
     const categoryWrap = document.querySelector("[data-favorite-categories]");
@@ -73,10 +78,20 @@
     const returnOpenButton = document.querySelector("[data-return-open]");
     const returnModal = document.querySelector("[data-return-modal]");
     const returnCloseButtons = document.querySelectorAll("[data-return-close]");
+    const returnCustomerSearch = document.querySelector("[data-return-customer-search]");
+    const returnCustomerResults = document.querySelector("[data-return-customer-results]");
+    const returnSalesOrderSelect = document.querySelector("[data-return-sales-order]");
+    const returnItems = document.querySelector("[data-return-items]");
+    const returnCurrentBalance = document.querySelector("[data-return-current-balance]");
+    const returnTotalAmount = document.querySelector("[data-return-total-amount]");
+    const returnExpectedBalance = document.querySelector("[data-return-expected-balance]");
+    const returnSettlementNeeded = document.querySelector("[data-return-settlement-needed]");
 
 
     function openReturnModal() {
+        resetReturnModal();
         returnModal.hidden = false;
+        returnCustomerSearch?.focus();
     }
 
     function closeReturnModal() {
@@ -690,6 +705,229 @@
         }, 180);
     }
 
+    function resetReturnModal() {
+        state.returnCustomer = null;
+        state.returnSales = [];
+        state.selectedReturnOrder = null;
+        state.returnCurrentBalance = 0;
+        if (returnCustomerSearch) {
+            returnCustomerSearch.value = "";
+        }
+        if (returnCustomerResults) {
+            returnCustomerResults.hidden = true;
+            returnCustomerResults.innerHTML = "";
+        }
+        renderReturnSalesOptions();
+        renderReturnItems(null);
+        renderReturnSummary(0);
+    }
+
+    async function fetchReturnCreditSales(customerId) {
+        const params = new URLSearchParams();
+        params.set("customerId", customerId);
+        params.set("paymentType", "CREDIT");
+
+        const response = await fetch(`/api/sales-management/sales?${params.toString()}`);
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || "외상판매 전표 조회에 실패했습니다.");
+        }
+        return response.json();
+    }
+
+    async function fetchReturnCustomerBalance(customerId) {
+        const response = await fetch(`/api/customers/${customerId}/ar-balance`);
+        if (!response.ok) {
+            throw new Error("고객 미수금 조회에 실패했습니다.");
+        }
+        const data = await response.json();
+        return Number(data.currentArBalance || 0);
+    }
+
+    function renderReturnCustomerResults(customers) {
+        if (!returnCustomerResults) {
+            return;
+        }
+
+        returnCustomerResults.innerHTML = "";
+        uniqueCustomersByName(customers).forEach((customer) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "customer-result-row";
+            row.innerHTML = `<span>${customer.name}</span><small>${customer.phone || "기존 고객"}</small>`;
+            row.addEventListener("click", () => selectReturnCustomer(customer));
+            returnCustomerResults.appendChild(row);
+        });
+
+        if (!returnCustomerResults.children.length) {
+            returnCustomerResults.innerHTML = `<button type="button" class="customer-result-row"><span>검색된 고객 없음</span></button>`;
+        }
+        returnCustomerResults.hidden = false;
+    }
+
+    async function selectReturnCustomer(customer) {
+        state.returnCustomer = customer;
+        state.selectedReturnOrder = null;
+        if (returnCustomerSearch) {
+            returnCustomerSearch.value = customer.name;
+        }
+        if (returnCustomerResults) {
+            returnCustomerResults.hidden = true;
+            returnCustomerResults.innerHTML = "";
+        }
+
+        renderReturnItems(null);
+        renderReturnSummary(0);
+        try {
+            const [balance, sales] = await Promise.all([
+                fetchReturnCustomerBalance(customer.id),
+                fetchReturnCreditSales(customer.id)
+            ]);
+            state.returnCurrentBalance = balance;
+            state.returnSales = sales;
+            renderReturnSalesOptions();
+            renderReturnSummary(0);
+        } catch (error) {
+            state.returnSales = [];
+            renderReturnSalesOptions(error.message);
+        }
+    }
+
+    function renderReturnSalesOptions(errorMessage) {
+        if (!returnSalesOrderSelect) {
+            return;
+        }
+
+        returnSalesOrderSelect.innerHTML = `<option value="">외상판매 전표 선택</option>`;
+        if (errorMessage) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = errorMessage;
+            returnSalesOrderSelect.appendChild(option);
+            returnSalesOrderSelect.disabled = true;
+            return;
+        }
+
+        returnSalesOrderSelect.disabled = !state.returnCustomer;
+        state.returnSales.forEach((sale) => {
+            const option = document.createElement("option");
+            option.value = String(sale.salesOrderId);
+            option.textContent = `전표 ${sale.salesOrderId} · ${sale.salesDate || ""} · ${sale.representativeProductName || ""} · ${money(sale.totalAmount)}`;
+            returnSalesOrderSelect.appendChild(option);
+        });
+    }
+
+    function selectReturnOrder(salesOrderId) {
+        state.selectedReturnOrder = state.returnSales.find((sale) => String(sale.salesOrderId) === String(salesOrderId)) || null;
+        renderReturnItems(state.selectedReturnOrder);
+        renderReturnSummary(calculateReturnTotal());
+    }
+
+    function renderReturnItems(order) {
+        if (!returnItems) {
+            return;
+        }
+
+        if (!order) {
+            returnItems.innerHTML = `<div class="empty-table-state">전표를 선택하면 품목이 표시됩니다.</div>`;
+            return;
+        }
+
+        const rows = order.items || [];
+        if (!rows.length) {
+            returnItems.innerHTML = `<div class="empty-table-state">반품할 품목이 없습니다.</div>`;
+            return;
+        }
+
+        returnItems.innerHTML = "";
+        rows.forEach((item) => {
+            const soldQuantity = Number(item.quantity || 0);
+            const returnedQuantity = Number(item.returnQuantity || 0);
+            const availableQuantity = Math.max(soldQuantity - returnedQuantity, 0);
+            const row = document.createElement("div");
+            row.className = "return-item-row";
+            row.innerHTML = `
+                <span title="${item.productName || ""}">${item.productName || ""}</span>
+                <span class="number">${money(soldQuantity)}</span>
+                <span class="number">${money(returnedQuantity)}</span>
+                <span class="number">${money(availableQuantity)}</span>
+                <span class="number">${money(item.unitPrice)}</span>
+                <span>
+                    <input type="number" min="0" max="${availableQuantity}" value="0"
+                           data-return-quantity-input="${item.salesOrderItemId}"
+                           data-return-unit-price="${item.unitPrice || 0}">
+                </span>
+                <span class="number" data-return-line-amount="${item.salesOrderItemId}">0</span>
+            `;
+            returnItems.appendChild(row);
+        });
+    }
+
+    function calculateReturnTotal() {
+        if (!returnItems) {
+            return 0;
+        }
+
+        return Array.from(returnItems.querySelectorAll("[data-return-quantity-input]"))
+                .reduce((total, input) => {
+                    const quantity = Math.max(numberValue(input.value), 0);
+                    const max = numberValue(input.max);
+                    const safeQuantity = max > 0 ? Math.min(quantity, max) : 0;
+                    const unitPrice = numberValue(input.dataset.returnUnitPrice);
+                    const lineAmount = safeQuantity * unitPrice;
+                    const amountCell = returnItems.querySelector(`[data-return-line-amount="${input.dataset.returnQuantityInput}"]`);
+                    if (amountCell) {
+                        amountCell.textContent = money(lineAmount);
+                    }
+                    return total + lineAmount;
+                }, 0);
+    }
+
+    function renderReturnSummary(returnAmount) {
+        const expectedBalance = state.returnCurrentBalance - returnAmount;
+        const settlementNeeded = expectedBalance < 0 ? Math.abs(expectedBalance) : 0;
+
+        if (returnCurrentBalance) {
+            returnCurrentBalance.textContent = money(state.returnCurrentBalance);
+        }
+        if (returnTotalAmount) {
+            returnTotalAmount.textContent = money(returnAmount);
+        }
+        if (returnExpectedBalance) {
+            returnExpectedBalance.textContent = money(expectedBalance);
+        }
+        if (returnSettlementNeeded) {
+            returnSettlementNeeded.textContent = money(settlementNeeded);
+        }
+    }
+
+    function handleReturnCustomerSearchInput() {
+        const keyword = returnCustomerSearch.value.trim();
+        state.returnCustomer = null;
+        state.returnSales = [];
+        state.selectedReturnOrder = null;
+        state.returnCurrentBalance = 0;
+        clearTimeout(state.returnSearchTimer);
+        renderReturnSalesOptions();
+        renderReturnItems(null);
+        renderReturnSummary(0);
+
+        if (!keyword) {
+            returnCustomerResults.hidden = true;
+            returnCustomerResults.innerHTML = "";
+            return;
+        }
+
+        state.returnSearchTimer = setTimeout(async () => {
+            try {
+                renderReturnCustomerResults(await searchCustomers(keyword));
+            } catch (error) {
+                returnCustomerResults.innerHTML = `<button type="button" class="customer-result-row"><span>${error.message}</span></button>`;
+                returnCustomerResults.hidden = false;
+            }
+        }, 180);
+    }
+
     async function ensureCustomer() {
         if (state.selectedCustomer) {
             return state.selectedCustomer;
@@ -1097,6 +1335,20 @@
     returnOpenButton?.addEventListener("click", openReturnModal);
     returnCloseButtons.forEach((button) => {
         button.addEventListener("click", closeReturnModal);
+    });
+    returnModal?.addEventListener("click", (event) => {
+        if (event.target === returnModal) {
+            closeReturnModal();
+        }
+    });
+    returnCustomerSearch?.addEventListener("input", handleReturnCustomerSearchInput);
+    returnSalesOrderSelect?.addEventListener("change", (event) => {
+        selectReturnOrder(event.target.value);
+    });
+    returnItems?.addEventListener("input", (event) => {
+        if (event.target.dataset.returnQuantityInput) {
+            renderReturnSummary(calculateReturnTotal());
+        }
     });
 
     document.querySelector("[data-product-create-open]").addEventListener("click", openCreateModal);
