@@ -20,6 +20,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // 특정 고객의 특정 기간 수금 내역 조회
     List<Payment> findByCustomerIdAndPaymentDateBetween(Long customerId, LocalDate startDate, LocalDate endDate);
 
+    List<Payment> findByCustomerIdAndPaymentDateBetweenAndActiveTrue(Long customerId, LocalDate startDate, LocalDate endDate);
+
     // 특정 판매 전표와 연결된 수금 내역 조회
     List<Payment> findBySalesOrderId(Long salesOrderId);
 

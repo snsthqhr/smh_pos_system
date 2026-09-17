@@ -99,6 +99,26 @@ class ReturnControllerTest {
         verify(arTxRepository, never()).save(any(ArTx.class));
     }
 
+    @Test
+    @DisplayName("부가세 별도 전표는 반품 응답에도 부가세 포함 금액을 표시한다")
+    void registerReturn_addVat_includesTaxInResponseAmount() {
+        SalesOrder salesOrder = creditSalesOrder(10L, 20L);
+        salesOrder.setTaxPolicy("ADD_VAT");
+        SalesOrderItem item = salesOrderItem(100L, 10L, 30000);
+        RegisterReturnRequest request = returnRequest(10L, 100L, 1);
+        ArTx positiveBalance = arTx(100000);
+
+        when(salesOrderRepository.findById(10L)).thenReturn(Optional.of(salesOrder));
+        when(salesOrderItemRepository.findById(100L)).thenReturn(Optional.of(item));
+        when(arTxRepository.findByCustomerIdAndActiveTrue(20L)).thenReturn(List.of(positiveBalance));
+
+        RegisterReturnResponse response = returnController.registerReturn(request);
+
+        assertThat(response.getReturnAmount()).isEqualTo(33000);
+        assertThat(response.getRefundAmount()).isZero();
+        assertThat(response.getBalanceAfterProcessing()).isEqualTo(100000);
+    }
+
     private SalesOrder creditSalesOrder(Long id, Long customerId) {
         SalesOrder salesOrder = new SalesOrder();
         salesOrder.setId(id);

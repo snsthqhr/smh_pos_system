@@ -1546,6 +1546,74 @@ label {
     justify-content: flex-end;
 }
 
+.cancel-sale-modal {
+    width: min(760px, 100%);
+    max-height: min(760px, 92vh);
+}
+
+.cancel-sale-modal-body {
+    padding: 18px;
+    overflow: auto;
+}
+
+.cancel-sale-lead {
+    margin: 0 0 14px;
+    color: var(--muted);
+}
+
+.cancel-sale-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+}
+
+.cancel-sale-summary > div {
+    display: grid;
+    gap: 6px;
+    min-height: 68px;
+    padding: 10px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: white;
+}
+
+.cancel-sale-summary span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.cancel-sale-summary strong {
+    text-align: right;
+    font-size: 18px;
+}
+
+.cancel-sale-summary .refund-total strong {
+    color: var(--accent);
+}
+
+.cancel-sale-memo {
+    display: grid;
+    gap: 6px;
+    margin-top: 14px;
+}
+
+.cancel-sale-memo input {
+    width: 100%;
+}
+
+.cancel-sale-actions {
+    padding: 14px 18px;
+    background: #e4ece2;
+    border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+    .cancel-sale-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .payment-panel-title {
     display: grid;
     gap: 3px;

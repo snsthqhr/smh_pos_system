@@ -76,7 +76,7 @@ class ReturnServiceTest {
         SalesOrderItem findItem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
         assertThat(findItem.getReturnQuantity()).isEqualTo(2);
 
-        List<ArTx> arTxList = arTxRepository.findByCustomerId(1L);
+        List<ArTx> arTxList = arTxRepository.findBySalesOrderId(savedOrder.getId());
         assertThat(arTxList).hasSize(1);
 
         ArTx returnTx = arTxList.get(0);
@@ -85,6 +85,46 @@ class ReturnServiceTest {
         assertThat(returnTx.getSalesOrderId()).isEqualTo(savedOrder.getId());
         assertThat(returnTx.getAmount()).isEqualTo(-100000); // 50000 * 2 * (-1)
         assertThat(returnTx.getMemo()).isEqualTo("일부 반품");
+    }
+
+    @Test
+    @DisplayName("부가세 별도 판매 반품은 공급가와 부가세를 합친 금액으로 RETURN을 생성한다")
+    void addReturnQuantity_addVat_includesTaxInReturnAmount() {
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setCustomerId(101L);
+        salesOrder.setPaymentType("CREDIT");
+        salesOrder.setSalesDate(LocalDate.now());
+        salesOrder.setTaxPolicy("ADD_VAT");
+        salesOrder.setTotalNetAmount(30000);
+        salesOrder.setTotalTaxAmount(3000);
+        salesOrder.setTotalAmount(33000);
+        salesOrder.setActive(true);
+        SalesOrder savedOrder = salesOrderRepository.save(salesOrder);
+
+        SalesOrderItem item = new SalesOrderItem();
+        item.setSalesOrderId(savedOrder.getId());
+        item.setProductId(10L);
+        item.setQuantity(1);
+        item.setUnitPrice(30000);
+        item.setSupplyPrice(30000);
+        item.setTaxPrice(3000);
+        item.setTotalPrice(33000);
+        item.setReturnQuantity(0);
+        item.setActive(true);
+        SalesOrderItem savedItem = salesOrderItemRepository.save(item);
+
+        ReturnRequest request = new ReturnRequest();
+        request.setSalesOrderItemId(savedItem.getId());
+        request.setReturnQuantity(1);
+        request.setMemo("부가세 포함 반품");
+
+        returnService.addReturnQuantity(request);
+
+        ArTx returnTx = arTxRepository.findByCustomerId(101L).stream()
+                .filter(tx -> "RETURN".equals(tx.getTxType()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(returnTx.getAmount()).isEqualTo(-33000);
     }
 
     @Test
@@ -208,7 +248,7 @@ class ReturnServiceTest {
         SalesOrderItem findItem = salesOrderItemRepository.findById(savedItem.getId()).orElseThrow();
         assertThat(findItem.getReturnQuantity()).isEqualTo(3); // 누적
 
-        List<ArTx> arTxList = arTxRepository.findByCustomerId(1L);
+        List<ArTx> arTxList = arTxRepository.findBySalesOrderId(savedOrder.getId());
         assertThat(arTxList).hasSize(2);
 
         ArTx firstTx = arTxList.get(0);

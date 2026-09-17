@@ -31,7 +31,7 @@ public class ArTx {
     private LocalDate txDate;
 
     // 미수금 변동 유형
-    // 예: SALE, RETURN, PAYMENT, REFUND_SETTLEMENT
+    // 예: SALE, RETURN, PAYMENT, REFUND_SETTLEMENT, SALE_CANCEL
     private String txType;
 
     // 미수금 증감 금액
@@ -39,6 +39,8 @@ public class ArTx {
     // 반품: -금액
     // 수금: -금액
     // 환불정산: +금액
+    // 외상 판매취소: 아직 취소되지 않은 판매잔액만큼 -금액
+    // 즉시결제 판매취소: 미수금 영향이 없으므로 0
     private Integer amount;
 
     // 메모

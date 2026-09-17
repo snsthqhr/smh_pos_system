@@ -82,7 +82,7 @@ public class PaymentService {
         if(request.getCustomerId()==null){
             throw new IllegalArgumentException("customerid는 필수입니다.");
         }
-        if(request.getAmount()<=0|| request.getAmount() == null){
+        if(request.getAmount() == null || request.getAmount() <= 0){
             throw new IllegalArgumentException("수금 금액은 0보다 커야 합니다.");
         }
         if(request.getPaymentMethod()==null ||request.getPaymentMethod().isBlank()){
@@ -93,7 +93,8 @@ public class PaymentService {
 
     int calculateCurrentArBalance(Long customerId){
 
-        List<ArTx> txList = arTxRepository.findByCustomerId(customerId);
+        // 취소된 판매/수금 원장은 현재 미수금에 다시 포함하면 안 된다.
+        List<ArTx> txList = arTxRepository.findByCustomerIdAndActiveTrue(customerId);
 
         int balance = txList.stream()
                 .mapToInt(ArTx::getAmount).sum();

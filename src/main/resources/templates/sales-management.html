@@ -184,6 +184,45 @@
         </div>
     </section>
 </main>
-<script src="/js/sales-management.js"></script>
+
+<div class="modal-backdrop" data-cancel-sale-modal hidden>
+    <section class="favorite-modal cancel-sale-modal" role="dialog" aria-modal="true" aria-labelledby="cancelSaleTitle">
+        <header class="modal-header">
+            <div>
+                <p>판매전표 전체 취소</p>
+                <h2 id="cancelSaleTitle">전표 취소 예상 결과</h2>
+            </div>
+            <button type="button" class="icon-close" data-cancel-sale-close aria-label="닫기">×</button>
+        </header>
+
+        <div class="cancel-sale-modal-body">
+            <p class="cancel-sale-lead" data-cancel-sale-description>취소할 전표의 금액을 확인해 주세요.</p>
+            <section class="cancel-sale-summary" aria-label="전표 취소 금액 요약">
+                <div><span>판매금액</span><strong data-cancel-sale-amount>0</strong></div>
+                <div><span>전표 직접 수금액</span><strong data-cancel-payment-amount>0</strong></div>
+                <div><span>기존 반품금액</span><strong data-cancel-return-amount>0</strong></div>
+                <div><span>이미 돌려준 금액</span><strong data-cancel-previous-refund>0</strong></div>
+                <div><span>취소할 남은 판매금액</span><strong data-cancel-remaining-sale>0</strong></div>
+                <div><span>현재 고객 미수금</span><strong data-cancel-current-balance>0</strong></div>
+                <div><span>취소 후 예상잔액</span><strong data-cancel-expected-balance>0</strong></div>
+                <div class="refund-total"><span>이번에 돌려줄 금액</span><strong data-cancel-refund-amount>0</strong></div>
+                <div><span>처리 후 최종잔액</span><strong data-cancel-final-balance>0</strong></div>
+            </section>
+
+            <label class="cancel-sale-memo">
+                취소 사유
+                <input type="text" data-cancel-sale-memo maxlength="1000" placeholder="판매전표 취소">
+            </label>
+            <p class="form-message" data-cancel-sale-message></p>
+        </div>
+
+        <footer class="modal-footer-actions cancel-sale-actions">
+            <button type="button" data-cancel-sale-close>닫기</button>
+            <button type="button" data-confirm-sale-cancel disabled>전표 취소</button>
+        </footer>
+    </section>
+</div>
+
+<script src="/js/sales-management.js?v=20260917-cancel-preview"></script>
 </body>
 </html>

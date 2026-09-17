@@ -72,7 +72,7 @@ public class ReturnController {
             }
 
             int quantity = itemRequest.getQuantity();
-            returnAmount += quantity * nullToZero(item.getUnitPrice());
+            returnAmount += calculateReturnAmount(salesOrder, item, quantity);
 
             ReturnRequest returnRequest = new ReturnRequest();
             returnRequest.setSalesOrderId(request.getSalesOrderId());
@@ -159,5 +159,15 @@ public class ReturnController {
 
     private int nullToZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private int calculateReturnAmount(SalesOrder salesOrder,
+                                      SalesOrderItem item,
+                                      int quantity) {
+        int supplyAmount = quantity * nullToZero(item.getUnitPrice());
+        int taxAmount = "ADD_VAT".equals(salesOrder.getTaxPolicy())
+                ? (int) (supplyAmount * 0.1)
+                : 0;
+        return supplyAmount + taxAmount;
     }
 }

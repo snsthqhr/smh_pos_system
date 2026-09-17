@@ -17,6 +17,7 @@
     const detailToggleButton = document.querySelector("[data-toggle-ledger-detail]");
     const detailOptions = document.querySelector("[data-ledger-detail-options]");
     const typeFilters = document.querySelectorAll("[data-ledger-type-filter]");
+    const hideCancelledOrdersInput = document.querySelector("[data-hide-cancelled-orders]");
     const columnFilters = document.querySelectorAll("[data-ledger-column-filter]");
     const message = document.querySelector("[data-ledger-message]");
     const ledgerRows = document.querySelector("[data-ledger-rows]");
@@ -278,6 +279,7 @@
             const isPayment = row.txType === "수금";
             const isReturn = row.txType === "반품";
             const isRefundSettlement = row.txType === "환불정산";
+            const isSaleCancel = row.txType === "판매취소";
             const shouldSumSale = hasOrderSummary ? isOrderSummary : isCreditSaleLine;
 
             // 오더합계가 보이면 오더합계 기준, 숨겨져 있으면 현재 보이는 판매 품목행 기준으로 합산한다.
@@ -288,10 +290,14 @@
             if (isPayment) {
                 sum.paymentAmount += Number(row.paymentAmount || 0);
             }
+            if (isSaleCancel) {
+                sum.saleAmount += Number(row.saleAmount || 0);
+                sum.paymentAmount += Number(row.paymentAmount || 0);
+            }
             if (isReturn) {
                 sum.returnAmount += Math.abs(Number(row.arDelta || 0));
             }
-            if (shouldSumSale || isPayment || isReturn || isRefundSettlement) {
+            if (shouldSumSale || isPayment || isReturn || isRefundSettlement || isSaleCancel) {
                 sum.arDelta += Number(row.arDelta || 0);
             }
             return sum;
@@ -330,9 +336,51 @@
                 .map((input) => input.value));
     }
 
+    function applyHiddenSummaryBalance(rows, visibleTypes) {
+        const displayRows = rows.map((row) => ({ ...row }));
+        if (visibleTypes.has("오더합계")) {
+            return displayRows;
+        }
+
+        const summariesByOrder = new Map();
+        const lastVisibleSaleIndexByOrder = new Map();
+
+        displayRows.forEach((row, index) => {
+            if (Boolean(row.summaryRow) && row.salesOrderId != null) {
+                summariesByOrder.set(String(row.salesOrderId), row);
+                return;
+            }
+
+            const saleRow = row.txType === "판매(외상)" || row.txType === "판매(즉시결제)";
+            if (saleRow && visibleTypes.has(row.txType) && row.salesOrderId != null) {
+                lastVisibleSaleIndexByOrder.set(String(row.salesOrderId), index);
+            }
+        });
+
+        // 오더합계 행을 숨길 때 그 행이 가진 미수증감과 최종잔액을
+        // 같은 전표의 마지막 상품 행에 표시해 화면상 잔액 흐름이 끊기지 않게 한다.
+        summariesByOrder.forEach((summary, salesOrderId) => {
+            const saleRowIndex = lastVisibleSaleIndexByOrder.get(salesOrderId);
+            if (saleRowIndex == null) {
+                return;
+            }
+
+            const saleRow = displayRows[saleRowIndex];
+            saleRow.arDelta = Number(saleRow.arDelta || 0) + Number(summary.arDelta || 0);
+            saleRow.balance = summary.balance;
+        });
+
+        return displayRows;
+    }
+
     function filterRows(rows) {
         const visibleTypes = checkedValues(typeFilters);
-        return rows.filter((row) => visibleTypes.has(row.txType || ""));
+        const cancellationFilteredRows = hideCancelledOrdersInput.checked
+                ? rows.filter((row) => !Boolean(row.cancelledOrder))
+                : rows;
+
+        return applyHiddenSummaryBalance(cancellationFilteredRows, visibleTypes)
+                .filter((row) => visibleTypes.has(row.txType || ""));
     }
 
     function applyColumnVisibility() {
@@ -490,7 +538,7 @@ td:nth-child(n+6) { text-align: right; }
             downloadLedgerExport("hwp", "application/x-hwp");
         });
 
-        [...typeFilters, ...columnFilters].forEach((input) => {
+        [...typeFilters, hideCancelledOrdersInput, ...columnFilters].forEach((input) => {
             input.addEventListener("change", () => renderRows(state.rows));
         });
 

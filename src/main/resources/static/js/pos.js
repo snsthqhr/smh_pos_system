@@ -882,7 +882,11 @@
                     const max = numberValue(input.max);
                     const safeQuantity = max > 0 ? Math.min(quantity, max) : 0;
                     const unitPrice = numberValue(input.dataset.returnUnitPrice);
-                    const lineAmount = safeQuantity * unitPrice;
+                    const supplyAmount = safeQuantity * unitPrice;
+                    const taxAmount = state.selectedReturnOrder?.taxPolicy === "ADD_VAT"
+                            ? Math.floor(supplyAmount * 0.1)
+                            : 0;
+                    const lineAmount = supplyAmount + taxAmount;
                     const amountCell = returnItems.querySelector(`[data-return-line-amount="${input.dataset.returnQuantityInput}"]`);
                     if (amountCell) {
                         amountCell.textContent = money(lineAmount);

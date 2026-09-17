@@ -77,7 +77,7 @@ public class ReturnService {
         returnArTx.setActive(true);
         returnArTx.setCustomerId(salesOrder.getCustomerId());
         returnArTx.setSalesOrderId(salesOrder.getId());
-        returnArTx.setAmount(calculateReturnAmount(item, requestReturnQuantity));
+        returnArTx.setAmount(calculateReturnAmount(salesOrder, item, requestReturnQuantity));
         returnArTx.setTxDate(LocalDate.now());
 
 
@@ -87,13 +87,19 @@ public class ReturnService {
     }
 
     // 이번 반품 요청 수량 기준으로 반품 금액 계산
-    private int calculateReturnAmount(SalesOrderItem item, int requestReturnQuantity) {
+    private int calculateReturnAmount(SalesOrder salesOrder,
+                                      SalesOrderItem item,
+                                      int requestReturnQuantity) {
 
         // 기존
         // int returnQuantity = item.getReturnQuantity();
         // int Amount = -(returnQuantity * item.getUnitPrice());
 
         // 변경: 누적 반품수량이 아니라 "이번 반품수량" 기준으로 계산해야 함
-        return -(requestReturnQuantity * item.getUnitPrice());
+        int supplyAmount = requestReturnQuantity * item.getUnitPrice();
+        int taxAmount = "ADD_VAT".equals(salesOrder.getTaxPolicy())
+                ? (int) (supplyAmount * 0.1)
+                : 0;
+        return -(supplyAmount + taxAmount);
     }
 }

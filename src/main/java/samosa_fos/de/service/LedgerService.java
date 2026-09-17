@@ -10,7 +10,9 @@ import samosa_fos.de.repository.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -72,11 +74,18 @@ public class LedgerService {
         // 6.5 환불정산 행 추가
         ledgerRows.addAll(convertRefundSettlementsToLedgerRows(arTxList));
 
+        // 6.6 판매전표 취소 역거래 추가
+        ledgerRows.addAll(convertSaleCancellationsToLedgerRows(arTxList));
+
+        // 판매일과 취소일이 다른 조회 범위에서도 취소 전표 전체를 숨길 수 있도록
+        // 각 원장 행에 연결된 판매전표의 현재 취소 상태를 표시한다.
+        markCancelledOrders(ledgerRows);
+
         // 7. 거래일자 기준 정렬
         ledgerRows.sort(
                 Comparator.comparing(LedgerRowDto::getTxDate)
                         .thenComparing(row -> row.getSalesOrderId() == null ? Long.MAX_VALUE : row.getSalesOrderId())
-                        .thenComparing(row -> Boolean.TRUE.equals(row.getSummaryRow()) ? 1 : 0)
+                        .thenComparingInt(this::ledgerSortRank)
         );
 
         // 8. 필터 적용
@@ -104,7 +113,7 @@ public class LedgerService {
     private List<ArTx> getArTxByCondition(LedgerSearchRequest request) {
 
         if (request.getStartDate() != null && request.getEndDate() != null) {
-            return arTxRepository.findByCustomerIdAndTxDateBetween(
+            return arTxRepository.findByCustomerIdAndTxDateBetweenAndActiveTrue(
                     request.getCustomerId(),
                     request.getStartDate(),
                     request.getEndDate()
@@ -131,14 +140,16 @@ public class LedgerService {
     private List<SalesOrder> getSalesOrdersByCondition(LedgerSearchRequest request) {
 
         if (request.getStartDate() != null && request.getEndDate() != null) {
-            return salesOrderRepository.findByCustomerIdAndSalesDateBetweenAndActiveTrue(
+            return salesOrderRepository.findByCustomerIdAndSalesDateBetween(
                     request.getCustomerId(),
                     request.getStartDate(),
                     request.getEndDate()
-            );
+            ).stream().filter(this::shouldIncludeSalesOrder).toList();
         }
 
-        return salesOrderRepository.findByCustomerIdAndActiveTrue(request.getCustomerId());
+        return salesOrderRepository.findByCustomerId(request.getCustomerId()).stream()
+                .filter(this::shouldIncludeSalesOrder)
+                .toList();
     }
 
     // 판매 전표 -> 원장 행 변환
@@ -244,7 +255,7 @@ public class LedgerService {
     private List<Payment> getPaymentsByCondition(LedgerSearchRequest request) {
 
         if (request.getStartDate() != null && request.getEndDate() != null) {
-            return paymentRepository.findByCustomerIdAndPaymentDateBetween(
+            return paymentRepository.findByCustomerIdAndPaymentDateBetweenAndActiveTrue(
                     request.getCustomerId(),
                     request.getStartDate(),
                     request.getEndDate()
@@ -376,6 +387,11 @@ public class LedgerService {
                 continue;
             }
 
+            if ("판매취소".equals(txType)) {
+                filtered.add(row);
+                continue;
+            }
+
             if ("오더합계".equals(txType)) {
                 filtered.add(row);
             }
@@ -486,5 +502,89 @@ public class LedgerService {
         }
 
         return rows;
+    }
+
+    private List<LedgerRowDto> convertSaleCancellationsToLedgerRows(List<ArTx> arTxList) {
+        List<LedgerRowDto> rows = new ArrayList<>();
+
+        for (ArTx arTx : arTxList) {
+            if (!"SALE_CANCEL".equals(arTx.getTxType())) {
+                continue;
+            }
+
+            SalesOrder salesOrder = salesOrderRepository.findById(arTx.getSalesOrderId()).orElse(null);
+            boolean immediateSale = salesOrder != null && !"CREDIT".equals(salesOrder.getPaymentType());
+
+            LedgerRowDto row = new LedgerRowDto();
+            row.setTxDate(arTx.getTxDate());
+            row.setSalesOrderId(arTx.getSalesOrderId());
+            row.setCustomerId(arTx.getCustomerId());
+            row.setTxType("판매취소");
+            row.setProductName("[전표 취소]");
+            row.setUnit(null);
+            row.setUnitPrice(null);
+            row.setQuantity(null);
+            row.setSupplyPrice(0);
+            row.setTaxPrice(0);
+            row.setSaleAmount(immediateSale
+                    ? -nullToZero(salesOrder.getTotalAmount())
+                    : nullToZero(arTx.getAmount()));
+            row.setPaymentAmount(immediateSale
+                    ? -paymentRepository.findBySalesOrderId(arTx.getSalesOrderId()).stream()
+                    .mapToInt(payment -> nullToZero(payment.getAmount()))
+                    .sum()
+                    : 0);
+            row.setArDelta(nullToZero(arTx.getAmount()));
+            row.setSummaryRow(false);
+            row.setMemo(arTx.getMemo());
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    private boolean shouldIncludeSalesOrder(SalesOrder salesOrder) {
+        if (Boolean.TRUE.equals(salesOrder.getActive())) {
+            return true;
+        }
+        return arTxRepository.findBySalesOrderIdAndTxTypeAndActiveTrue(salesOrder.getId(), "SALE_CANCEL")
+                .isPresent();
+    }
+
+    private int ledgerSortRank(LedgerRowDto row) {
+        if ("판매취소".equals(row.getTxType())) {
+            return 4;
+        }
+        if (Boolean.TRUE.equals(row.getSummaryRow())) {
+            return 1;
+        }
+        if ("수금".equals(row.getTxType()) || "반품".equals(row.getTxType()) || "환불정산".equals(row.getTxType())) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private void markCancelledOrders(List<LedgerRowDto> rows) {
+        Map<Long, Boolean> cancellationByOrderId = new HashMap<>();
+
+        for (LedgerRowDto row : rows) {
+            Long salesOrderId = row.getSalesOrderId();
+            if (salesOrderId == null) {
+                row.setCancelledOrder(false);
+                continue;
+            }
+
+            boolean cancelled = cancellationByOrderId.computeIfAbsent(
+                    salesOrderId,
+                    orderId -> salesOrderRepository.findById(orderId)
+                            .map(order -> !Boolean.TRUE.equals(order.getActive()))
+                            .orElse(false)
+            );
+            row.setCancelledOrder(cancelled);
+        }
+    }
+
+    private int nullToZero(Integer value) {
+        return value == null ? 0 : value;
     }
 }

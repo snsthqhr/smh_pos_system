@@ -48,6 +48,9 @@ public class LedgerRowDto {
     // 합계 행인지 여부
     private Boolean summaryRow = false;
 
+    // 연결된 판매전표가 취소된 상태인지 여부
+    private Boolean cancelledOrder = false;
+
     // 메모
     private String memo;
 

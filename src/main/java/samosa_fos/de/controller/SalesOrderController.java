@@ -5,8 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import samosa_fos.de.domain.SalesOrder;
+import samosa_fos.de.dto.sales.CancelSalesOrderRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderRequest;
 import samosa_fos.de.dto.sales.CreateSalesOrderResponse;
+import samosa_fos.de.dto.sales.SalesOrderCancelPreviewResponse;
 import samosa_fos.de.dto.sales.UpdateSalesOrderRequest;
 import samosa_fos.de.service.SalesOrderCancelService;
 import samosa_fos.de.service.SalesOrderService;
@@ -46,9 +48,16 @@ public class SalesOrderController {
         salesOrderUpdateService.updateSalesOrder(request);
     }
 
+    @GetMapping("/{salesOrderId}/cancel-preview")
+    public SalesOrderCancelPreviewResponse previewSalesOrderCancellation(@PathVariable Long salesOrderId) {
+        return salesOrderCancelService.previewCancellation(salesOrderId);
+    }
+
     @PostMapping("/{salesOrderId}/cancel")
-    public void cancelSalesOrder(@PathVariable Long salesOrderId) {
-        salesOrderCancelService.cancelSalesOrder(salesOrderId);
+    public SalesOrderCancelPreviewResponse cancelSalesOrder(
+            @PathVariable Long salesOrderId,
+            @RequestBody CancelSalesOrderRequest request) {
+        return salesOrderCancelService.cancelSalesOrder(salesOrderId, request);
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

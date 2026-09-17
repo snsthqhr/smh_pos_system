@@ -3,7 +3,8 @@
         selectedCustomer: null,
         selectedSale: null,
         selectedJobSite: null,
-        customerSearchTimer: null
+        customerSearchTimer: null,
+        cancelPreview: null
     };
 
     const startDateInput = document.querySelector("[data-start-date]");
@@ -21,6 +22,23 @@
     const saveButton = document.querySelector("[data-save-selected]");
     const cancelButton = document.querySelector("[data-cancel-selected]");
     const statementButton = document.querySelector("[data-download-statement]");
+    const cancelSaleModal = document.querySelector("[data-cancel-sale-modal]");
+    const cancelSaleCloseButtons = document.querySelectorAll("[data-cancel-sale-close]");
+    const confirmSaleCancelButton = document.querySelector("[data-confirm-sale-cancel]");
+    const cancelSaleMemo = document.querySelector("[data-cancel-sale-memo]");
+    const cancelSaleMessage = document.querySelector("[data-cancel-sale-message]");
+    const cancelSaleDescription = document.querySelector("[data-cancel-sale-description]");
+    const cancelPreviewFields = {
+        saleAmount: document.querySelector("[data-cancel-sale-amount]"),
+        directPaymentAmount: document.querySelector("[data-cancel-payment-amount]"),
+        returnAmount: document.querySelector("[data-cancel-return-amount]"),
+        previousRefundAmount: document.querySelector("[data-cancel-previous-refund]"),
+        remainingSaleAmount: document.querySelector("[data-cancel-remaining-sale]"),
+        currentArBalance: document.querySelector("[data-cancel-current-balance]"),
+        balanceAfterCancellation: document.querySelector("[data-cancel-expected-balance]"),
+        refundAmount: document.querySelector("[data-cancel-refund-amount]"),
+        balanceAfterProcessing: document.querySelector("[data-cancel-final-balance]")
+    };
 
     const detail = {
         salesDate: document.querySelector("[data-detail-sales-date]"),
@@ -428,18 +446,77 @@
         await searchSales();
     }
 
-    async function cancelSelectedSale() {
+    function closeCancelSaleModal() {
+        state.cancelPreview = null;
+        cancelSaleModal.hidden = true;
+        cancelSaleMessage.textContent = "";
+        confirmSaleCancelButton.disabled = true;
+    }
+
+    function renderCancelPreview(preview) {
+        Object.entries(cancelPreviewFields).forEach(([key, element]) => {
+            element.textContent = money(preview[key]);
+        });
+
+        const paymentText = paymentLabel(preview.paymentType);
+        cancelSaleDescription.textContent = preview.paymentType === "CREDIT"
+                ? `전표 ${preview.salesOrderId}번을 취소합니다. 고객 전체 미수금을 기준으로 추가 환불액을 계산했습니다.`
+                : `전표 ${preview.salesOrderId}번을 취소하고 ${paymentText} 결제금액을 고객에게 돌려줍니다.`;
+        confirmSaleCancelButton.textContent = Number(preview.refundAmount || 0) > 0
+                ? "취소 및 환불 처리"
+                : "전표 취소";
+        confirmSaleCancelButton.disabled = false;
+        cancelSaleMessage.textContent = preview.message || "금액을 확인한 뒤 처리해 주세요.";
+    }
+
+    async function openCancelSaleModal() {
         if (!state.selectedSale) {
             return;
         }
 
-        const ok = window.confirm(`전표 ${state.selectedSale.salesOrderId}번을 취소할까요?\n취소된 전표는 판매내역과 미수금 흐름에서 제외됩니다.`);
-        if (!ok) {
+        state.cancelPreview = null;
+        cancelSaleMemo.value = "";
+        cancelSaleMessage.textContent = "취소 예상 금액을 계산하는 중입니다.";
+        confirmSaleCancelButton.disabled = true;
+        cancelSaleModal.hidden = false;
+
+        const response = await fetch(`/api/sales-orders/${state.selectedSale.salesOrderId}/cancel-preview`);
+        if (!response.ok) {
+            const text = await response.text();
+            closeCancelSaleModal();
+            throw new Error(text || "전표 취소 예상 금액을 조회하지 못했습니다.");
+        }
+
+        state.cancelPreview = await response.json();
+        renderCancelPreview(state.cancelPreview);
+    }
+
+    async function confirmCancelSelectedSale() {
+        if (!state.selectedSale || !state.cancelPreview) {
             return;
         }
 
+        const refundAmount = Number(state.cancelPreview.refundAmount || 0);
+        if (refundAmount > 0) {
+            const refundMethod = state.cancelPreview.paymentType === "CREDIT"
+                    ? ""
+                    : ` (${paymentLabel(state.cancelPreview.paymentType)} 결제 취소)`;
+            const ok = window.confirm(`${money(refundAmount)}원을 고객에게 돌려준 것을 확인한 뒤 전표를 취소합니다.${refundMethod}\n계속하시겠습니까?`);
+            if (!ok) {
+                return;
+            }
+        }
+
+        confirmSaleCancelButton.disabled = true;
+        cancelSaleMessage.textContent = "전표 취소를 저장하는 중입니다.";
+
         const response = await fetch(`/api/sales-orders/${state.selectedSale.salesOrderId}/cancel`, {
-            method: "POST"
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                expectedRefundAmount: refundAmount,
+                memo: cancelSaleMemo.value.trim() || "판매전표 취소"
+            })
         });
 
         if (!response.ok) {
@@ -447,7 +524,10 @@
             throw new Error(text || "전표 취소에 실패했습니다.");
         }
 
-        message.textContent = "전표가 취소되었습니다.";
+        const result = await response.json();
+        closeCancelSaleModal();
+        message.textContent = result.message || "전표가 취소되었습니다.";
+        alert(result.message || "전표가 취소되었습니다.");
         clearDetail();
         await searchSales();
     }
@@ -495,10 +575,30 @@
         statementButton.addEventListener("click", openStatement);
         cancelButton.addEventListener("click", async () => {
             try {
-                await cancelSelectedSale();
+                await openCancelSaleModal();
             } catch (error) {
                 message.textContent = error.message;
                 alert(error.message);
+            }
+        });
+        confirmSaleCancelButton.addEventListener("click", async () => {
+            try {
+                await confirmCancelSelectedSale();
+            } catch (error) {
+                cancelSaleMessage.textContent = error.message;
+                confirmSaleCancelButton.disabled = false;
+                alert(error.message);
+            }
+        });
+        cancelSaleCloseButtons.forEach((button) => button.addEventListener("click", closeCancelSaleModal));
+        cancelSaleModal.addEventListener("click", (event) => {
+            if (event.target === cancelSaleModal) {
+                closeCancelSaleModal();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !cancelSaleModal.hidden) {
+                closeCancelSaleModal();
             }
         });
         saveButton.addEventListener("click", async () => {
