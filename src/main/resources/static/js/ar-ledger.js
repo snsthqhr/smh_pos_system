@@ -33,6 +33,7 @@
         unitPrice: "82px",
         sale: "102px",
         payment: "102px",
+        return: "102px",
         delta: "98px",
         balance: "102px",
         memo: "minmax(120px, 0.7fr)"
@@ -190,18 +191,33 @@
         }, 160);
     }
 
-    function selectedCustomerIdForSearch() {
-        if (!customerInput.value.trim()) {
+    async function resolveCustomerIdForSearch() {
+        const keyword = customerInput.value.trim();
+
+        if (!keyword) {
             state.selectedCustomer = null;
             customerClear.hidden = true;
             return null;
         }
-        return state.selectedCustomer ? state.selectedCustomer.id : null;
+
+        if (state.selectedCustomer && state.selectedCustomer.name === keyword) {
+            return state.selectedCustomer.id;
+        }
+
+        const customers = uniqueCustomersByName(await searchCustomers(keyword));
+        const matched = customers.find((customer) => customer.name === keyword) || customers[0];
+
+        if (!matched) {
+            throw new Error("입력한 고객을 찾을 수 없습니다.");
+        }
+
+        selectCustomer(matched);
+        return matched.id;
     }
 
     async function fetchLedgerRows() {
         const params = new URLSearchParams();
-        const customerId = selectedCustomerIdForSearch();
+        const customerId = await resolveCustomerIdForSearch();
         if (customerId) {
             params.set("customerId", customerId);
         }
@@ -230,6 +246,7 @@
         }
 
         visibleRows.forEach((row) => {
+            const returnAmount = row.txType === "반품" ? Math.abs(Number(row.arDelta || 0)) : 0;
             const element = document.createElement("div");
             element.className = `ledger-row ${row.summaryRow ? "is-summary" : ""}`;
             element.innerHTML = `
@@ -242,6 +259,7 @@
                 <span data-col="unitPrice" class="number">${row.unitPrice == null ? "" : money(row.unitPrice)}</span>
                 <span data-col="sale" class="number">${money(row.saleAmount)}</span>
                 <span data-col="payment" class="number">${money(row.paymentAmount)}</span>
+                <span data-col="return" class="number">${money(returnAmount)}</span>
                 <span data-col="delta" class="number">${money(row.arDelta)}</span>
                 <span data-col="balance" class="number strong">${money(row.balance)}</span>
                 <span data-col="memo" title="${row.memo || ""}">${row.memo || ""}</span>
@@ -259,6 +277,7 @@
             const isCreditSaleLine = row.txType === "판매(외상)" && !isOrderSummary;
             const isPayment = row.txType === "수금";
             const isReturn = row.txType === "반품";
+            const isRefundSettlement = row.txType === "환불정산";
             const shouldSumSale = hasOrderSummary ? isOrderSummary : isCreditSaleLine;
 
             // 오더합계가 보이면 오더합계 기준, 숨겨져 있으면 현재 보이는 판매 품목행 기준으로 합산한다.
@@ -269,7 +288,10 @@
             if (isPayment) {
                 sum.paymentAmount += Number(row.paymentAmount || 0);
             }
-            if (shouldSumSale || isPayment || isReturn) {
+            if (isReturn) {
+                sum.returnAmount += Math.abs(Number(row.arDelta || 0));
+            }
+            if (shouldSumSale || isPayment || isReturn || isRefundSettlement) {
                 sum.arDelta += Number(row.arDelta || 0);
             }
             return sum;
@@ -277,6 +299,7 @@
             quantity: 0,
             saleAmount: 0,
             paymentAmount: 0,
+            returnAmount: 0,
             arDelta: 0
         });
 
@@ -293,6 +316,7 @@
             <span data-col="unitPrice" class="number"></span>
             <span data-col="sale" class="number">${money(totals.saleAmount)}</span>
             <span data-col="payment" class="number">${money(totals.paymentAmount)}</span>
+            <span data-col="return" class="number">${money(totals.returnAmount)}</span>
             <span data-col="delta" class="number">${money(totals.arDelta)}</span>
             <span data-col="balance" class="number strong">${money(lastBalance)}</span>
             <span data-col="memo"></span>

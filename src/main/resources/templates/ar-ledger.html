@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>삼화페인트 거래처 매출원장</title>
-    <link rel="stylesheet" href="/css/app-ui.css?v=20260723-1250">
+    <link rel="stylesheet" href="/css/app-ui.css?v=20260903-return-amount">
 </head>
 <body class="app-shell management-screen">
 <aside class="management-nav">
@@ -67,6 +67,7 @@
             <label><input type="checkbox" data-ledger-type-filter value="판매(즉시결제)" checked> 즉시결제</label>
             <label><input type="checkbox" data-ledger-type-filter value="수금" checked> 수금</label>
             <label><input type="checkbox" data-ledger-type-filter value="반품" checked> 반품</label>
+            <label><input type="checkbox" data-ledger-type-filter value="환불정산" checked> 환불정산</label>
             <label><input type="checkbox" data-ledger-type-filter value="오더합계"> 오더합계</label>
         </div>
         <div>
@@ -80,6 +81,7 @@
             <label><input type="checkbox" data-ledger-column-filter value="unitPrice" checked> 단가</label>
             <label><input type="checkbox" data-ledger-column-filter value="sale" checked> 판매금액</label>
             <label><input type="checkbox" data-ledger-column-filter value="payment" checked> 수금액</label>
+            <label><input type="checkbox" data-ledger-column-filter value="return" checked> 반품금액</label>
             <label><input type="checkbox" data-ledger-column-filter value="delta" checked> 미수증감</label>
             <label><input type="checkbox" data-ledger-column-filter value="balance" checked> 잔액</label>
             <label><input type="checkbox" data-ledger-column-filter value="memo" checked> 메모</label>
@@ -97,6 +99,7 @@
             <span data-col="unitPrice">단가</span>
             <span data-col="sale">판매금액</span>
             <span data-col="payment">수금액</span>
+            <span data-col="return">반품금액</span>
             <span data-col="delta">미수증감</span>
             <span data-col="balance">잔액</span>
             <span data-col="memo">메모</span>
@@ -107,6 +110,6 @@
     </section>
 </main>
 
-<script src="/js/ar-ledger.js?v=20260723-1250"></script>
+<script src="/js/ar-ledger.js?v=20260911-refund-settlement"></script>
 </body>
 </html>

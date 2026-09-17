@@ -86,6 +86,8 @@
     const returnTotalAmount = document.querySelector("[data-return-total-amount]");
     const returnExpectedBalance = document.querySelector("[data-return-expected-balance]");
     const returnSettlementNeeded = document.querySelector("[data-return-settlement-needed]");
+    const returnMessage = document.querySelector("[data-return-message]");
+    const returnProcessButton = document.querySelector("[data-return-process]");
 
 
     function openReturnModal() {
@@ -717,6 +719,12 @@
             returnCustomerResults.hidden = true;
             returnCustomerResults.innerHTML = "";
         }
+        if (returnMessage) {
+            returnMessage.textContent = "";
+        }
+        if (returnProcessButton) {
+            returnProcessButton.disabled = true;
+        }
         renderReturnSalesOptions();
         renderReturnItems(null);
         renderReturnSummary(0);
@@ -899,6 +907,10 @@
         if (returnSettlementNeeded) {
             returnSettlementNeeded.textContent = money(settlementNeeded);
         }
+        if (returnProcessButton) {
+            returnProcessButton.disabled = !state.selectedReturnOrder || returnAmount <= 0;
+            returnProcessButton.textContent = settlementNeeded > 0 ? "반품 및 환불 처리" : "반품 처리";
+        }
     }
 
     function handleReturnCustomerSearchInput() {
@@ -926,6 +938,87 @@
                 returnCustomerResults.hidden = false;
             }
         }, 180);
+    }
+
+    function collectReturnItems() {
+        if (!returnItems) {
+            return [];
+        }
+
+        return Array.from(returnItems.querySelectorAll("[data-return-quantity-input]"))
+                .map((input) => {
+                    const max = numberValue(input.max);
+                    const quantity = Math.min(Math.max(numberValue(input.value), 0), max);
+                    return {
+                        salesOrderItemId: Number(input.dataset.returnQuantityInput),
+                        quantity
+                    };
+                })
+                .filter((item) => item.quantity > 0);
+    }
+
+    async function saveReturn() {
+        if (!state.selectedReturnOrder) {
+            alert("반품할 외상판매 전표를 선택해 주세요.");
+            return;
+        }
+
+        const items = collectReturnItems();
+        if (!items.length) {
+            alert("반품 수량을 1개 이상 입력해 주세요.");
+            return;
+        }
+
+        const returnAmount = calculateReturnTotal();
+        const refundAmount = Math.max(returnAmount - state.returnCurrentBalance, 0);
+        if (refundAmount > 0) {
+            const confirmed = confirm(`${money(refundAmount)}원을 고객에게 바로 돌려준 뒤 반품을 처리합니다.\n계속하시겠습니까?`);
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        if (returnProcessButton) {
+            returnProcessButton.disabled = true;
+        }
+        if (returnMessage) {
+            returnMessage.textContent = "반품을 저장하는 중입니다.";
+        }
+
+        try {
+            const response = await fetch("/api/returns", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    salesOrderId: state.selectedReturnOrder.salesOrderId,
+                    memo: "POS 반품",
+                    items
+                })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || "반품 저장에 실패했습니다.");
+            }
+
+            const result = await response.json();
+            state.returnCurrentBalance = Number(result.balanceAfterProcessing || 0);
+            if (returnMessage) {
+                returnMessage.textContent = result.message || "반품이 저장되었습니다.";
+            }
+
+            await selectReturnCustomer(state.returnCustomer);
+            if (returnMessage) {
+                returnMessage.textContent = result.message || "반품이 저장되었습니다.";
+            }
+            alert(result.message || "반품이 저장되었습니다.");
+        } catch (error) {
+            if (returnMessage) {
+                returnMessage.textContent = error.message;
+            }
+            alert(error.message);
+            renderReturnSummary(calculateReturnTotal());
+        }
     }
 
     async function ensureCustomer() {
@@ -1350,6 +1443,7 @@
             renderReturnSummary(calculateReturnTotal());
         }
     });
+    returnProcessButton?.addEventListener("click", saveReturn);
 
     document.querySelector("[data-product-create-open]").addEventListener("click", openCreateModal);
     document.querySelectorAll("[data-product-create-close]").forEach((button) => {

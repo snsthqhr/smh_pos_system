@@ -69,6 +69,9 @@ public class LedgerService {
         // 6. 반품 행 추가 (추후 고도화)
         ledgerRows.addAll(convertReturnsToLedgerRows(arTxList));
 
+        // 6.5 환불정산 행 추가
+        ledgerRows.addAll(convertRefundSettlementsToLedgerRows(arTxList));
+
         // 7. 거래일자 기준 정렬
         ledgerRows.sort(
                 Comparator.comparing(LedgerRowDto::getTxDate)
@@ -368,6 +371,11 @@ public class LedgerService {
                 continue;
             }
 
+            if ("환불정산".equals(txType)) {
+                filtered.add(row);
+                continue;
+            }
+
             if ("오더합계".equals(txType)) {
                 filtered.add(row);
             }
@@ -439,6 +447,38 @@ public class LedgerService {
             // 미수금 감소 반영
             row.setArDelta(arTx.getAmount());
 
+            row.setSummaryRow(false);
+            row.setMemo(arTx.getMemo());
+
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    private List<LedgerRowDto> convertRefundSettlementsToLedgerRows(List<ArTx> arTxList) {
+
+        List<LedgerRowDto> rows = new ArrayList<>();
+
+        for (ArTx arTx : arTxList) {
+            if (!"REFUND_SETTLEMENT".equals(arTx.getTxType())) {
+                continue;
+            }
+
+            LedgerRowDto row = new LedgerRowDto();
+            row.setTxDate(arTx.getTxDate());
+            row.setSalesOrderId(arTx.getSalesOrderId());
+            row.setCustomerId(arTx.getCustomerId());
+            row.setTxType("환불정산");
+            row.setProductName("환불정산");
+            row.setUnit(null);
+            row.setUnitPrice(null);
+            row.setQuantity(null);
+            row.setSupplyPrice(0);
+            row.setTaxPrice(0);
+            row.setSaleAmount(0);
+            row.setPaymentAmount(0);
+            row.setArDelta(arTx.getAmount());
             row.setSummaryRow(false);
             row.setMemo(arTx.getMemo());
 

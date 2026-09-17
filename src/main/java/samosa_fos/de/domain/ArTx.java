@@ -31,13 +31,14 @@ public class ArTx {
     private LocalDate txDate;
 
     // 미수금 변동 유형
-    // 예: SALE, RETURN, PAYMENT
+    // 예: SALE, RETURN, PAYMENT, REFUND_SETTLEMENT
     private String txType;
 
     // 미수금 증감 금액
     // 외상 판매: +금액
     // 반품: -금액
     // 수금: -금액
+    // 환불정산: +금액
     private Integer amount;
 
     // 메모

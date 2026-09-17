@@ -1456,9 +1456,9 @@ label {
 .ledger-table .table-header,
 .ledger-row {
     display: grid;
-    grid-template-columns: 92px 112px 96px 54px minmax(240px, 1.7fr) 54px 82px 102px 102px 98px 102px minmax(120px, 0.7fr);
+    grid-template-columns: 92px 112px 96px 54px minmax(240px, 1.7fr) 54px 82px 102px 102px 102px 98px 102px minmax(120px, 0.7fr);
     width: 100%;
-    min-width: 1260px;
+    min-width: 1360px;
 }
 
 .ledger-table.is-compact-columns .table-header,
